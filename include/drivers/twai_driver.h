@@ -13,37 +13,63 @@ struct TWAIDriver : public CanDriver {
     gpio_num_t txPin, rxPin;
     static constexpr bool kSupportsISR = false;
 
-    TWAIDriver(gpio_num_t tx = (gpio_num_t)TWAI_TX_PIN, gpio_num_t rx = (gpio_num_t)TWAI_RX_PIN)
+    TWAIDriver(gpio_num_t tx = (gpio_num_t)TWAI_TX_PIN,
+               gpio_num_t rx = (gpio_num_t)TWAI_RX_PIN)
         : txPin(tx), rxPin(rx) {}
 
     bool init() override {
-        twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(txPin, rxPin, TWAI_MODE_NORMAL);
-        g_config.rx_queue_len = 32;
-        g_config.tx_queue_len = 16;
-        twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
-        twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
-        if (twai_driver_install(&g_config, &t_config, &f_config) != ESP_OK) return false;
+        g_config_ = TWAI_GENERAL_CONFIG_DEFAULT(txPin, rxPin, TWAI_MODE_NORMAL);
+        g_config_.rx_queue_len = 32;
+        g_config_.tx_queue_len = 16;
+        t_config_ = TWAI_TIMING_CONFIG_500KBITS();
+        f_config_ = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+        if (twai_driver_install(&g_config_, &t_config_, &f_config_) != ESP_OK) return false;
         return twai_start() == ESP_OK;
     }
 
     bool send(const CanFrame& frame) override {
         twai_message_t msg = {};
-        msg.identifier = frame.id;
-        msg.data_length_code = frame.dlc;
+        msg.identifier        = frame.id;
+        msg.data_length_code  = frame.dlc;
         memcpy(msg.data, frame.data, 8);
-        return twai_transmit(&msg, pdMS_TO_TICKS(5)) == ESP_OK;
+        if (twai_transmit(&msg, pdMS_TO_TICKS(10)) != ESP_OK) {
+            if (isBusOff()) recover();
+            return false;
+        }
+        return true;
     }
 
     bool read(CanFrame& frame) override {
         twai_message_t msg;
-        if (twai_receive(&msg, 0) != ESP_OK) return false;
-        frame.id = msg.identifier;
+        if (twai_receive(&msg, 0) != ESP_OK) {
+            if (isBusOff()) recover();
+            return false;
+        }
+        frame.id  = msg.identifier;
         frame.dlc = msg.data_length_code;
         memcpy(frame.data, msg.data, 8);
         return true;
     }
 
-    void setFilters(const uint32_t* ids, uint8_t count) override {
-        // TWAI hardware filter is limited; we filter in software
+    void setFilters(const uint32_t* /*ids*/, uint8_t /*count*/) override {
+        // Software filtering via isFilteredId() in handlers.h
+    }
+
+private:
+    twai_general_config_t g_config_{};
+    twai_timing_config_t  t_config_{};
+    twai_filter_config_t  f_config_{};
+
+    bool isBusOff() {
+        twai_status_info_t status;
+        if (twai_get_status_info(&status) != ESP_OK) return false;
+        return status.state == TWAI_STATE_BUS_OFF;
+    }
+
+    void recover() {
+        twai_stop();
+        twai_driver_uninstall();
+        twai_driver_install(&g_config_, &t_config_, &f_config_);
+        twai_start();
     }
 };
