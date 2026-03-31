@@ -34,6 +34,8 @@
 
 ## 接线方法
 
+![接线图](images/wiring.svg)
+
 ### ESP32 ↔ SN65HVD230 模块
 
 ```
@@ -78,6 +80,8 @@ SN65HVD230 CANL  →  车辆 CAN-L（通常为蓝色/绿色线）
 ---
 
 ## 第一步：安装软件
+
+![编译烧录步骤](images/compile-steps.svg)
 
 ### 1.1 安装 VS Code
 

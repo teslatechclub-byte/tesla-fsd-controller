@@ -1,0 +1,59 @@
+<svg width="860" height="500" xmlns="http://www.w3.org/2000/svg" font-family="'Helvetica Neue', Arial, sans-serif">
+  <rect width="860" height="500" fill="#0d1117" rx="12"/>
+
+  <text x="430" y="38" text-anchor="middle" fill="#e6edf3" font-size="17" font-weight="bold">编译 &amp; 烧录步骤 — VS Code + PlatformIO</text>
+
+  <!-- Step 1 -->
+  <circle cx="60" cy="90" r="20" fill="#238636" stroke="#2ea043" stroke-width="2"/>
+  <text x="60" y="96" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="bold">1</text>
+  <rect x="95" y="68" width="730" height="46" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="115" y="87" fill="#e6edf3" font-size="13" font-weight="bold">安装 VS Code 扩展</text>
+  <text x="115" y="104" fill="#8b949e" font-size="11">左侧栏 → 扩展图标（四个方块）→ 搜索「PlatformIO IDE」→ 安装 → 重启 VS Code</text>
+
+  <!-- Step 2 -->
+  <circle cx="60" cy="160" r="20" fill="#238636" stroke="#2ea043" stroke-width="2"/>
+  <text x="60" y="166" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="bold">2</text>
+  <rect x="95" y="138" width="730" height="46" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="115" y="157" fill="#e6edf3" font-size="13" font-weight="bold">打开项目文件夹</text>
+  <text x="115" y="174" fill="#8b949e" font-size="11">菜单 File → Open Folder → 选择解压后的文件夹 → 弹出「是否信任」→ 点击「Yes, I trust」</text>
+
+  <!-- Step 3 -->
+  <circle cx="60" cy="230" r="20" fill="#1f6feb" stroke="#388bfd" stroke-width="2"/>
+  <text x="60" y="236" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="bold">3</text>
+  <rect x="95" y="208" width="730" height="46" rx="8" fill="#161b22" stroke="#388bfd" stroke-width="1.5"/>
+  <text x="115" y="227" fill="#79c0ff" font-size="13" font-weight="bold">修改配置（必做）</text>
+  <text x="115" y="244" fill="#8b949e" font-size="11">打开 src/main.cpp → 第 21 行改 WiFi 密码 ｜ 打开 include/handlers.h → 取消注释你的硬件版本</text>
+
+  <!-- Step 4: Build button diagram -->
+  <circle cx="60" cy="320" r="20" fill="#238636" stroke="#2ea043" stroke-width="2"/>
+  <text x="60" y="326" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="bold">4</text>
+  <rect x="95" y="298" width="730" height="80" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="115" y="318" fill="#e6edf3" font-size="13" font-weight="bold">编译 → 烧录（底部状态栏按钮）</text>
+  <!-- Status bar mockup -->
+  <rect x="115" y="326" width="680" height="36" rx="4" fill="#1f2937"/>
+  <!-- Build button -->
+  <rect x="125" y="331" width="80" height="26" rx="4" fill="#238636"/>
+  <text x="165" y="348" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="bold">✓ Build</text>
+  <!-- Upload button -->
+  <rect x="215" y="331" width="80" height="26" rx="4" fill="#1f6feb"/>
+  <text x="255" y="348" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="bold">→ Upload</text>
+  <!-- Monitor button -->
+  <rect x="305" y="331" width="90" height="26" rx="4" fill="#6e3b9e"/>
+  <text x="350" y="348" text-anchor="middle" fill="#ffffff" font-size="12">🔌 Monitor</text>
+  <!-- Arrow pointing to buttons -->
+  <text x="420" y="348" fill="#6e7681" font-size="11">← VS Code 底部状态栏</text>
+
+  <!-- Step 5 -->
+  <circle cx="60" cy="420" r="20" fill="#238636" stroke="#2ea043" stroke-width="2"/>
+  <text x="60" y="426" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="bold">5</text>
+  <rect x="95" y="398" width="730" height="60" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="115" y="418" fill="#e6edf3" font-size="13" font-weight="bold">烧录失败？</text>
+  <text x="115" y="436" fill="#f85149" font-size="11">📌 部分 ESP32 需要：上传时按住开发板上「BOOT」按钮，看到进度条出现后松手</text>
+  <text x="115" y="451" fill="#8b949e" font-size="11">📌 确认 USB 线支持数据传输（充电线不行）｜ 确认已选正确的 COM 口</text>
+
+  <!-- Connector lines -->
+  <line x1="60" y1="110" x2="60" y2="140" stroke="#30363d" stroke-width="2" stroke-dasharray="4,3"/>
+  <line x1="60" y1="180" x2="60" y2="210" stroke="#30363d" stroke-width="2" stroke-dasharray="4,3"/>
+  <line x1="60" y1="250" x2="60" y2="300" stroke="#30363d" stroke-width="2" stroke-dasharray="4,3"/>
+  <line x1="60" y1="340" x2="60" y2="400" stroke="#30363d" stroke-width="2" stroke-dasharray="4,3"/>
+</svg>
