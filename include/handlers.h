@@ -14,6 +14,7 @@ struct FSDConfig {
     volatile bool     isaChimeSuppress    = false;
     volatile bool     emergencyDetection  = true;
     volatile bool     chinaMode          = false;  // CN firmware: bypass isFSDSelectedInUI check
+    volatile int      hw3SpeedOffset     = 0;      // cached from mux-0 frame, used in mux-2
 
     // Stats
     volatile uint32_t rxCount       = 0;
@@ -96,6 +97,7 @@ static void handleHW3(CanFrame& frame, CanDriver& driver) {
         auto index = readMuxID(frame);
         if (index == 0) cfg.fsdTriggered = cfg.chinaMode || isFSDSelectedInUI(frame);
         if (index == 0 && cfg.fsdTriggered && cfg.fsdEnable) {
+            cfg.hw3SpeedOffset = std::max(std::min(((int)((frame.data[3] >> 1) & 0x3F) - 30) * 5, 100), 0);
             setBit(frame, 46, true);
             setSpeedProfileV12V13(frame, cfg.speedProfile);
             if (driver.send(frame)) cfg.modifiedCount++;
@@ -107,11 +109,10 @@ static void handleHW3(CanFrame& frame, CanDriver& driver) {
             else cfg.errorCount++;
         }
         if (index == 2 && cfg.fsdTriggered && cfg.fsdEnable) {
-            int speedOffset = std::max(std::min(((int)((frame.data[3] >> 1) & 0x3F) - 30) * 5, 100), 0);
             frame.data[0] &= ~(0b11000000);
             frame.data[1] &= ~(0b00111111);
-            frame.data[0] |= (speedOffset & 0x03) << 6;
-            frame.data[1] |= (speedOffset >> 2);
+            frame.data[0] |= (cfg.hw3SpeedOffset & 0x03) << 6;
+            frame.data[1] |= (cfg.hw3SpeedOffset >> 2);
             if (driver.send(frame)) cfg.modifiedCount++;
             else cfg.errorCount++;
         }
