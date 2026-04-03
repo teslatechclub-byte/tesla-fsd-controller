@@ -271,9 +271,9 @@ After modifying and rebuilding the firmware, you can update wirelessly — no US
 > Confirm that "Traffic Light and Stop Sign Control" is enabled under **Controls → Autopilot** in the car. This is the trigger condition.
 
 **Q: Do I need to remove the 120Ω termination resistor from the CAN module?**
-> Depends on your module:
-> - **SN65HVD230** (recommended): **No action needed** — this module has no built-in termination resistor.
-> - **MCP2515 blue module**: **Must remove** the R1/R2 resistors or cut the J1 jumper. Tesla's CAN bus already has built-in termination at both ends; adding another degrades signal quality and causes communication failures.
+> Tesla's CAN bus already has built-in termination at both ends. Adding another 120Ω resistor will degrade signal quality and cause communication failures — **make sure the module's 120Ω resistor is disconnected**.
+> - **SN65HVD230 module**: The chip itself has no termination resistor, but some manufacturers add one to the PCB, controlled by a jumper or solder bridge. Check the back of your module for a **120R** marking — if the jumper is connected or the solder bridge is closed, disconnect it (remove the jumper cap or cut the solder bridge with a blade).
+> - **MCP2515 blue module**: **Must remove** the R1/R2 resistors or cut the J1 jumper.
 
 **Q: Modified count stays at 0, device has no effect? (China, Japan, etc.)**
 > Enable **China Mode 🇨🇳** in the control panel. In these regions the car UI hides the "Traffic Light and Stop Sign Control" option due to a regional restriction, so the trigger bit (`UI_fsdStopsControlEnabled`) is always 0 and the mod never fires. China Mode bypasses this check.
