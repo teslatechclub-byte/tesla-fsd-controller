@@ -76,10 +76,8 @@ SN65HVD230 CANL  →  车辆 CAN-L（通常为蓝色/绿色线）
 >
 > ⚠️ **以下接线位置仅适用于 Model 3 / Model Y，已经过社区验证。Model S、Model X、Model 3 Highland、Model Y Juniper、Cybertruck 等其他车型的连接器位置不同，请勿照搬，必须自行查阅 Tesla 官方服务手册。**
 >
-> - **Model 3 / Model Y（2021 及以后）**：推荐接 [X179 连接器](https://service.tesla.com/docs/Model3/ElectricalReference/prog-233/connector/x179/)，Pin 13（CAN-H）/ Pin 14（CAN-L）
-> - **Model 3（2020 及以前旧款）**：推荐接 [X652 连接器](https://service.tesla.com/docs/Model3/ElectricalReference/prog-187/connector/x652/)，Pin 1（CAN-H）/ Pin 2（CAN-L）
->
-> 📎 以上链接为 Tesla 官方服务手册，部分页面需要 Tesla 账号登录后访问。
+> - **Model 3 / Model Y（2021 及以后）**：推荐接 <a href="https://service.tesla.com/docs/Model3/ElectricalReference/prog-233/connector/x179/" target="_blank" rel="noopener">X179 连接器</a>，Pin 13（CAN-H）/ Pin 14（CAN-L）
+> - **Model 3（2020 及以前旧款）**：推荐接 <a href="https://service.tesla.com/docs/Model3/ElectricalReference/prog-187/connector/x652/" target="_blank" rel="noopener">X652 连接器</a>，Pin 1（CAN-H）/ Pin 2（CAN-L）
 >
 > 不确定时请先查阅 Tesla 服务手册，切勿盲目拆车接线。
 
