@@ -44,7 +44,7 @@ void loadConfig() {
     cfg.profileModeAuto    = prefs.getBool("proAuto", true);
     cfg.isaChimeSuppress   = prefs.getBool("isaChm", false);
     cfg.emergencyDetection = prefs.getBool("emDet", true);
-    cfg.chinaMode          = prefs.getBool("cnMode", false);
+    cfg.forceActivate      = prefs.getBool("cnMode", false);
     strlcpy(apSSID, prefs.getString("apSSID", "FSD-Controller").c_str(), sizeof(apSSID));
     strlcpy(apPass, prefs.getString("apPass", "12345678").c_str(), sizeof(apPass));
     prefs.end();
@@ -62,7 +62,7 @@ void saveConfig() {
     prefs.putBool("proAuto", cfg.profileModeAuto);
     prefs.putBool("isaChm",  cfg.isaChimeSuppress);
     prefs.putBool("emDet",   cfg.emergencyDetection);
-    prefs.putBool("cnMode",  cfg.chinaMode);
+    prefs.putBool("cnMode",  cfg.forceActivate);
     prefs.end();
 }
 
@@ -90,12 +90,12 @@ void setupWebServer() {
             *dst++ = *src++;
         }
 
-        char buf[420];
+        char buf[560];
         snprintf(buf, sizeof(buf),
             "{\"rx\":%u,\"modified\":%u,\"errors\":%u,\"uptime\":%u,"
             "\"canOK\":%s,\"fsdTriggered\":%s,"
             "\"fsdEnable\":%d,\"hwMode\":%d,\"speedProfile\":%d,"
-            "\"profileMode\":%d,\"isaChime\":%d,\"emergencyDet\":%d,\"chinaMode\":%d,"
+            "\"profileMode\":%d,\"isaChime\":%d,\"emergencyDet\":%d,\"forceActivate\":%d,"
             "\"apSSID\":\"%s\",\"version\":\"%s\"}",
             (unsigned)cfg.rxCount, (unsigned)cfg.modifiedCount,
             (unsigned)cfg.errorCount, (unsigned)uptime,
@@ -107,9 +107,25 @@ void setupWebServer() {
             (int)cfg.profileModeAuto,
             (int)cfg.isaChimeSuppress,
             (int)cfg.emergencyDetection,
-            (int)cfg.chinaMode,
+            (int)cfg.forceActivate,
             escapedSSID, FIRMWARE_VERSION
         );
+
+#ifdef DEBUG_MODE
+        if (cfg.dbgFrameCaptured) {
+            char dbg[120];
+            snprintf(dbg, sizeof(dbg),
+                ",\"dbg\":{\"captured\":true,\"bytes\":\"%02X %02X %02X %02X %02X %02X %02X %02X\",\"bit30\":%d}",
+                cfg.dbgFrame[0], cfg.dbgFrame[1], cfg.dbgFrame[2], cfg.dbgFrame[3],
+                cfg.dbgFrame[4], cfg.dbgFrame[5], cfg.dbgFrame[6], cfg.dbgFrame[7],
+                (cfg.dbgFrame[3] >> 6) & 0x01
+            );
+            size_t len = strlen(buf);
+            buf[len - 1] = '\0';
+            strlcat(buf, dbg, sizeof(buf));
+            strlcat(buf, "}", sizeof(buf));
+        }
+#endif
         req->send(200, "application/json", buf);
     });
 
@@ -141,8 +157,8 @@ void setupWebServer() {
             cfg.emergencyDetection = req->getParam("emergencyDet")->value().toInt() != 0;
             changed = true;
         }
-        if (req->hasParam("chinaMode")) {
-            cfg.chinaMode = req->getParam("chinaMode")->value().toInt() != 0;
+        if (req->hasParam("forceActivate")) {
+            cfg.forceActivate = req->getParam("forceActivate")->value().toInt() != 0;
             changed = true;
         }
 

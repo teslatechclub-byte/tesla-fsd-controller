@@ -13,7 +13,7 @@ struct FSDConfig {
     volatile bool     profileModeAuto     = true;    // true=auto from stalk, false=manual
     volatile bool     isaChimeSuppress    = false;
     volatile bool     emergencyDetection  = true;
-    volatile bool     chinaMode          = false;  // CN firmware: bypass isFSDSelectedInUI check
+    volatile bool     forceActivate      = false;  // bypass isFSDSelectedInUI check (regions without TLSSC)
     volatile int      hw3SpeedOffset     = 0;      // cached from mux-0 frame, used in mux-2
 
     // Stats
@@ -23,6 +23,12 @@ struct FSDConfig {
     volatile bool     canOK         = false;
     volatile bool     fsdTriggered  = false;
     volatile uint32_t uptimeStart   = 0;
+
+#ifdef DEBUG_MODE
+    // Debug: last captured frame 1021 mux-0 raw bytes
+    volatile bool    dbgFrameCaptured = false;
+    volatile uint8_t dbgFrame[8]      = {};
+#endif
 };
 
 static FSDConfig cfg;
@@ -67,7 +73,7 @@ static void handleLegacy(CanFrame& frame, CanDriver& driver) {
     }
     if (frame.id == 1006) {
         auto index = readMuxID(frame);
-        if (index == 0) cfg.fsdTriggered = cfg.chinaMode || isFSDSelectedInUI(frame);
+        if (index == 0) cfg.fsdTriggered = cfg.forceActivate || isFSDSelectedInUI(frame);
         if (index == 0 && cfg.fsdTriggered && cfg.fsdEnable) {
             setBit(frame, 46, true);
             setSpeedProfileV12V13(frame, cfg.speedProfile);
@@ -95,7 +101,7 @@ static void handleHW3(CanFrame& frame, CanDriver& driver) {
     }
     if (frame.id == 1021) {
         auto index = readMuxID(frame);
-        if (index == 0) cfg.fsdTriggered = cfg.chinaMode || isFSDSelectedInUI(frame);
+        if (index == 0) cfg.fsdTriggered = cfg.forceActivate || isFSDSelectedInUI(frame);
         if (index == 0 && cfg.fsdTriggered && cfg.fsdEnable) {
             cfg.hw3SpeedOffset = std::max(std::min(((int)((frame.data[3] >> 1) & 0x3F) - 30) * 5, 100), 0);
             setBit(frame, 46, true);
@@ -143,7 +149,13 @@ static void handleHW4(CanFrame& frame, CanDriver& driver) {
     }
     if (frame.id == 1021) {
         auto index = readMuxID(frame);
-        if (index == 0) cfg.fsdTriggered = cfg.chinaMode || isFSDSelectedInUI(frame);
+        if (index == 0) {
+            cfg.fsdTriggered = cfg.forceActivate || isFSDSelectedInUI(frame);
+#ifdef DEBUG_MODE
+            for (int i = 0; i < 8; i++) cfg.dbgFrame[i] = frame.data[i];
+            cfg.dbgFrameCaptured = true;
+#endif
+        }
         if (index == 0 && cfg.fsdTriggered && cfg.fsdEnable) {
             setBit(frame, 46, true);
             setBit(frame, 60, true);

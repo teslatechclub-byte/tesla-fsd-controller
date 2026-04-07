@@ -30,7 +30,7 @@ Closed-source FSD activation modules sell for around ¥500. Here's the full comp
 | Speed offset | ✅ | ✅ |
 | Driving mode adjustment | ✅ | ✅ |
 | Scroll wheel speed control | ✅ | ✅ |
-| China mode toggle | ✅ | ✅ |
+| Force Activate mode | ✅ | ✅ |
 | Web control panel | ❌ | ✅ |
 | OTA firmware update | ❌ | ✅ |
 | Open source / auditable | ❌ | ✅ |
@@ -284,7 +284,7 @@ Connect the ESP32 to your computer with a USB cable.
 | **Profile Source** | Auto (Stalk) = follow-distance stalk controls the profile; Manual = fixed to the dropdown selection |
 | **ISA Chime Suppress** | Suppresses ISA speed-limit chime (HW4 only) |
 | **Emergency Detection** | Enables emergency vehicle detection (HW4 FSD V14 only) |
-| **China Mode 🇨🇳** | Required for regions where "Traffic Light and Stop Sign Control" is not available in the car UI (China, Japan, etc.). Without this, the trigger condition is never met and the device has no effect. |
+| **Force Activate** | Required for regions where "Traffic Light and Stop Sign Control" is hidden in the car UI (China, Japan, etc.). Without this, the trigger condition (`UI_fsdStopsControlEnabled` bit) is always 0 and the device has no effect. Enabling this bypasses the check and activates FSD directly. |
 | **WiFi Settings** | Change the hotspot SSID and password. Click Save & Restart — the device reboots with the new credentials. |
 
 ### 5.3 Speed Profile Reference
@@ -341,7 +341,7 @@ After modifying and rebuilding the firmware, you can update wirelessly — no US
 > - **MCP2515 blue module**: **Must remove** the R1/R2 resistors or cut the J1 jumper.
 
 **Q: Modified count stays at 0, device has no effect? (China, Japan, etc.)**
-> Enable **China Mode 🇨🇳** in the control panel. In these regions the car UI hides the "Traffic Light and Stop Sign Control" option due to a regional restriction, so the trigger bit (`UI_fsdStopsControlEnabled`) is always 0 and the mod never fires. China Mode bypasses this check.
+> Enable **Force Activate** in the control panel. In these regions the car UI hides the "Traffic Light and Stop Sign Control" option due to a regional restriction, so the trigger bit (`UI_fsdStopsControlEnabled`) is always 0 and the mod never fires. Force Activate bypasses this check.
 
 **Q: Device appears to work but FSD still doesn't activate?**
 > Check that your Tesla account has a valid FSD authorization (purchased or subscribed). The device operates at the CAN level only and cannot bypass Tesla's server-side authorization.

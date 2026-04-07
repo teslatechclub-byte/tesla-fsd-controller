@@ -105,8 +105,8 @@ select:focus{outline:none;border-color:#38bdf8}
     <label class="toggle"><input type="checkbox" id="emergencyDet" checked onchange="setVal('emergencyDet',this.checked?1:0)"><span class="slider"></span></label>
   </div>
   <div class="row">
-    <span class="row-label" id="iLblCN">中国模式 🇨🇳</span>
-    <label class="toggle"><input type="checkbox" id="chinaMode" onchange="setVal('chinaMode',this.checked?1:0)"><span class="slider"></span></label>
+    <span class="row-label" id="iLblCN">强制激活</span>
+    <label class="toggle"><input type="checkbox" id="forceActivate" onchange="setVal('forceActivate',this.checked?1:0)"><span class="slider"></span></label>
   </div>
 </div>
 
@@ -154,7 +154,7 @@ var lang='zh';
 var T={
   zh:{title:'FSD 控制器',cardCtrl:'控制',cardStat:'状态',cardOTA:'固件更新',
     lblFsdEn:'FSD 开关',lblHW:'硬件版本',lblSpeed:'速度模式',lblPMode:'模式来源',
-    lblISA:'限速提示音抑制',lblEmg:'紧急车辆检测',lblCN:'中国模式 🇨🇳',
+    lblISA:'限速提示音抑制',lblEmg:'紧急车辆检测',lblCN:'强制激活',
     lblMod:'已修改',lblRX:'已接收',lblErr:'错误',lblUp:'运行时间',
     lblCAN:'CAN 总线',lblFSDTrig:'FSD 已触发',
     lblFile:'选择文件',noFile:'未选择文件',uploadBtn:'上传固件',
@@ -168,7 +168,7 @@ var T={
     wifiPassErr:'密码至少 8 位',wifiSSIDErr:'SSID 不能为空'},
   en:{title:'FSD Controller',cardCtrl:'CONTROL',cardStat:'STATUS',cardOTA:'OTA UPDATE',
     lblFsdEn:'FSD Enable',lblHW:'Hardware',lblSpeed:'Speed Profile',lblPMode:'Profile Source',
-    lblISA:'ISA Chime Suppress',lblEmg:'Emergency Detection',lblCN:'China Mode 🇨🇳',
+    lblISA:'ISA Chime Suppress',lblEmg:'Emergency Detection',lblCN:'Force Activate',
     lblMod:'MODIFIED',lblRX:'RECEIVED',lblErr:'ERRORS',lblUp:'UPTIME',
     lblCAN:'CAN Bus',lblFSDTrig:'FSD Triggered',
     lblFile:'Choose File',noFile:'No file chosen',uploadBtn:'Upload Firmware',
@@ -240,7 +240,7 @@ function poll(){
     document.getElementById('profileMode').value=d.profileMode?'1':'0';
     document.getElementById('isaChime').checked=!!d.isaChime;
     document.getElementById('emergencyDet').checked=!!d.emergencyDet;
-    document.getElementById('chinaMode').checked=!!d.chinaMode;
+    document.getElementById('forceActivate').checked=!!d.forceActivate;
     if(d.apSSID&&!wifiSSIDLoaded){document.getElementById('wifiSSID').value=d.apSSID;wifiSSIDLoaded=true;}
     if(d.version)document.getElementById('sVer').textContent='v'+d.version;
     if(d.dbg&&d.dbg.captured&&!document.getElementById('dbgCard')){
