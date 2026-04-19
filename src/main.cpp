@@ -51,7 +51,9 @@ static MCP2517FDDriver vhDriver(MCP_CS1, mcpSPI, MCP_INT1);
 static MCP2517FDDriver prtyDriver(MCP_CS2, mcpSPI, MCP_INT2);
 #endif
 static Preferences    prefs;
-static volatile bool  otaPendingRestart = false;
+// Not static: mod_ota.h forward-declares this with `extern` so its background
+// task can trigger a reboot after a successful pull-update.
+volatile bool         otaPendingRestart = false;
 static bool           safeModeActive    = false;
 
 // ── Time sync (browser-pushed Unix timestamp) ──────────────────────
@@ -557,8 +559,8 @@ void setupWebServer() {
             (unsigned)cfg.perfBrakeEntryKph,
             escapedSSID,
             staSSID,
-            staConnected ? WiFi.localIP().toString().c_str() : "",
-            staConnected ? "true" : "false",
+            (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString().c_str() : "",
+            (WiFi.status() == WL_CONNECTED) ? "true" : "false",
             FIRMWARE_VARIANT,
             FIRMWARE_VERSION
         );
@@ -974,6 +976,32 @@ void setupWebServer() {
             }
         }
     );
+
+    // ── Online OTA (pull from GitHub Releases) ──
+    server.on("/api/ota/check", HTTP_POST, [](AsyncWebServerRequest* req) {
+        if (!checkToken(req)) { req->send(403, "text/plain", "UNAUTH"); return; }
+        if (!otaStartCheck()) { req->send(409, "text/plain", "BUSY"); return; }
+        req->send(200, "application/json", "{\"ok\":true}");
+    });
+
+    server.on("/api/ota/pull", HTTP_POST, [](AsyncWebServerRequest* req) {
+        if (!checkToken(req)) { req->send(403, "text/plain", "UNAUTH"); return; }
+        String url = req->hasParam("url", true) ? req->getParam("url", true)->value()
+                   : String(otaLatestUrl());
+        if (url.length() == 0 || !url.startsWith("https://")) {
+            req->send(400, "text/plain", "BAD_URL");
+            return;
+        }
+        if (!otaStartPull(url.c_str())) { req->send(409, "text/plain", "BUSY"); return; }
+        req->send(200, "application/json", "{\"ok\":true}");
+    });
+
+    server.on("/api/ota/status", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkToken(req)) { req->send(403, "text/plain", "UNAUTH"); return; }
+        char buf[640];
+        otaStatusJson(buf, sizeof(buf));
+        req->send(200, "application/json", buf);
+    });
 
 #ifdef WIFI_BRIDGE_ENABLED
     // ── WiFi bridge + DNS filter API ──────────────────────────────────────────
