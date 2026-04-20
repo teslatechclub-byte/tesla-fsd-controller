@@ -460,6 +460,20 @@ select:focus{outline:none;border-color:#38bdf8}
   <button class="upload-btn" id="uploadBtn" disabled onclick="doOTA()">上传固件</button>
   <div class="progress" id="progWrap"><div class="progress-bar" id="progBar"></div></div>
   <div class="msg" id="otaMsg"></div>
+  <div style="border-top:1px solid #1e293b;margin:14px 0 10px"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div style="font-size:13px;color:#94a3b8" id="iOnlineOtaTitle">在线更新 (从 GitHub)</div>
+    <div style="font-size:11px;color:#64748b" id="otaEnvTag">—</div>
+  </div>
+  <div style="font-size:12px;color:#64748b;margin-bottom:6px" id="otaCurrent">当前: —</div>
+  <div style="font-size:12px;color:#38bdf8;margin-bottom:8px;min-height:16px" id="otaLatest"></div>
+  <div style="display:flex;gap:8px">
+    <button class="save-btn" id="otaCheckBtn" onclick="doOtaCheck()" style="flex:1;background:#1e40af">检查更新</button>
+    <button class="save-btn" id="otaPullBtn" onclick="doOtaPull()" style="flex:1" disabled>下载并安装</button>
+  </div>
+  <div class="progress" id="otaDlWrap"><div class="progress-bar" id="otaDlBar"></div></div>
+  <div class="msg" id="otaPullMsg"></div>
+  <div style="font-size:11px;color:#475569;margin-top:6px" id="iOnlineOtaHint">需连接路由器 (STA) 才能联网检查/下载</div>
   <button class="save-btn" id="rebootBtn" onclick="showRebootConfirm()" style="background:#b91c1c;margin-top:14px">重启设备</button>
   <div id="rebootConfirmBox" style="display:none;background:#1e293b;border:1px solid #b91c1c;border-radius:8px;padding:12px;margin-top:8px;font-size:13px;color:#fca5a5">
     <div id="iRebootConfirmMsg" style="margin-bottom:10px">确定要重启吗？</div>
@@ -501,7 +515,8 @@ var T={
     lblFile:'选择文件',noFile:'未选择文件',uploadBtn:'上传固件',
     lblVer:'固件版本',
     canOK:'正常',canErr:'异常',fsdYes:'是',fsdNo:'否',
-    otaOK:'上传成功，正在重启...',otaFail:'上传失败: ',otaConn:'连接失败',rebootBtn:'重启设备',rebootConfirm:'确定要重启吗？',rebootConfirmBtn:'确认重启',rebootOK:'正在重启...',rebootFail:'重启失败',resetAllBtn:'恢复出厂设置',resetAllConfirm:'将清除所有配置（包括 WiFi、PIN、所有参数），确定吗？',resetAllConfirmBtn:'确认重置',resetAllOK:'已重置，正在重启...',resetAllFail:'重置失败',
+    otaOK:'上传成功，正在重启...',otaFail:'上传失败: ',otaConn:'连接失败',
+    otaCurrent:'当前',otaLatest:'最新',otaChecking:'正在查询 GitHub…',otaDownloading:'正在下载…',otaWriting:'正在写入',otaSuccess:'更新成功,正在重启',otaConfirm:'确认下载并安装新版? 期间请勿断电',otaOnlineTitle:'在线更新 (GitHub)',otaOnlineHint:'需连接路由器 (STA) 才能联网检查/下载',otaCheckBtn:'检查更新',otaPullBtn:'下载并安装',rebootBtn:'重启设备',rebootConfirm:'确定要重启吗？',rebootConfirmBtn:'确认重启',rebootOK:'正在重启...',rebootFail:'重启失败',resetAllBtn:'恢复出厂设置',resetAllConfirm:'将清除所有配置（包括 WiFi、PIN、所有参数），确定吗？',resetAllConfirmBtn:'确认重置',resetAllOK:'已重置，正在重启...',resetAllFail:'重置失败',
     uptH:'时',uptM:'分',uptS:'秒',langBtn:'EN',
     hwHint:'HW4 硬件 + 固件 2026.8.x 或更旧（FSD V13）→ 请选 HW3',
     cardWifi:'WiFi 设置',lblSSID:'热点名称（SSID）',lblPass:'新密码（留空保持不变）',
@@ -539,7 +554,8 @@ var T={
     lblFile:'Choose File',noFile:'No file chosen',uploadBtn:'Upload Firmware',
     lblVer:'Firmware Version',
     canOK:'OK',canErr:'ERROR',fsdYes:'Yes',fsdNo:'No',
-    otaOK:'Upload success, rebooting...',otaFail:'Upload failed: ',otaConn:'Connection error',rebootBtn:'Restart Device',rebootConfirm:'Restart the device?',rebootConfirmBtn:'Confirm Restart',rebootOK:'Rebooting...',rebootFail:'Reboot failed',resetAllBtn:'Factory Reset',resetAllConfirm:'This will erase all settings (WiFi, PIN, all config). Continue?',resetAllConfirmBtn:'Confirm Reset',resetAllOK:'Reset done, rebooting...',resetAllFail:'Reset failed',
+    otaOK:'Upload success, rebooting...',otaFail:'Upload failed: ',otaConn:'Connection error',
+    otaCurrent:'Current',otaLatest:'Latest',otaChecking:'Querying GitHub…',otaDownloading:'Downloading…',otaWriting:'Writing',otaSuccess:'Update OK, rebooting',otaConfirm:'Download and install now? Do not power off.',otaOnlineTitle:'Online Update (GitHub)',otaOnlineHint:'STA (router) connection required to fetch releases',otaCheckBtn:'Check for Update',otaPullBtn:'Download & Install',rebootBtn:'Restart Device',rebootConfirm:'Restart the device?',rebootConfirmBtn:'Confirm Restart',rebootOK:'Rebooting...',rebootFail:'Reboot failed',resetAllBtn:'Factory Reset',resetAllConfirm:'This will erase all settings (WiFi, PIN, all config). Continue?',resetAllConfirmBtn:'Confirm Reset',resetAllOK:'Reset done, rebooting...',resetAllFail:'Reset failed',
     uptH:'h',uptM:'m',uptS:'s',langBtn:'中文',
     hwHint:'HW4 hardware + firmware 2026.8.x or older (FSD V13) → select HW3',
     cardWifi:'WiFi Settings',lblSSID:'AP Name (SSID)',lblPass:'New Password (blank = keep current)',
@@ -622,6 +638,11 @@ function applyLang(){
   document.getElementById('logClrBtn').textContent=t.logClrBtn;
   document.getElementById('iLblFile').textContent=t.lblFile;
   document.getElementById('uploadBtn').textContent=t.uploadBtn;
+  var el;
+  if(el=document.getElementById('iOnlineOtaTitle')) el.textContent=t.otaOnlineTitle;
+  if(el=document.getElementById('iOnlineOtaHint')) el.textContent=t.otaOnlineHint;
+  if(el=document.getElementById('otaCheckBtn')) el.textContent=t.otaCheckBtn;
+  if(el=document.getElementById('otaPullBtn')) el.textContent=t.otaPullBtn;
   document.getElementById('rebootBtn').textContent=t.rebootBtn;
   document.getElementById('iRebootConfirmMsg').textContent=t.rebootConfirm;
   document.getElementById('iRebootConfirmBtn').textContent=t.rebootConfirmBtn;
@@ -873,6 +894,8 @@ function startApp(){
   setInterval(poll,1000);poll();
   syncTime();  // push browser clock to ESP32 for real timestamps in CSV
   brInit();    // probe for WiFi bridge endpoint (esp32s3-waveshare-wifi only)
+  // populate current version + env tag; pullBtn stays disabled until user checks.
+  fetch('/api/ota/status'+(token?'?token='+token:'')).then(r=>r.ok?r.json():null).then(j=>{if(j)otaRenderStatus(j);}).catch(function(){});
 }
 
 // ── WiFi bridge card (shown only if backend supports it) ───────────
@@ -1389,6 +1412,53 @@ function doOTA(){
   xhr.onerror=function(){msg.textContent=t.otaConn;msg.className='msg err';document.getElementById('uploadBtn').disabled=false;};
   var form=new FormData();form.append('firmware',file);
   xhr.open('POST','/api/ota'+(token?'?token='+token:''));xhr.send(form);
+}
+var __otaPoll=null;
+function otaRenderStatus(s){
+  var t=T[lang];
+  var msg=document.getElementById('otaPullMsg');
+  var cur=document.getElementById('otaCurrent');
+  var lat=document.getElementById('otaLatest');
+  var env=document.getElementById('otaEnvTag');
+  var wrap=document.getElementById('otaDlWrap');
+  var bar=document.getElementById('otaDlBar');
+  var pullBtn=document.getElementById('otaPullBtn');
+  var chkBtn=document.getElementById('otaCheckBtn');
+  if(s.current)cur.textContent=(t.otaCurrent||'当前')+': '+s.current;
+  if(s.envTag)env.textContent=s.envTag;
+  // state: 0=idle 1=checking 2=downloading 3=writing 4=ready 5=success 6=error
+  if(s.state===1){msg.textContent=t.otaChecking||'正在查询 GitHub…';msg.className='msg';chkBtn.disabled=true;pullBtn.disabled=true;}
+  else if(s.state===2){msg.textContent=t.otaDownloading||'正在下载…';msg.className='msg';wrap.style.display='block';chkBtn.disabled=true;pullBtn.disabled=true;}
+  else if(s.state===3){wrap.style.display='block';var pct=s.total>0?Math.round(s.written/s.total*100):0;bar.style.width=pct+'%';msg.textContent=(t.otaWriting||'正在写入')+' '+pct+'%';msg.className='msg';chkBtn.disabled=true;pullBtn.disabled=true;}
+  else if(s.state===4){lat.textContent=(t.otaLatest||'最新')+': v'+s.latest;msg.textContent=s.message||'';msg.className='msg ok';chkBtn.disabled=false;pullBtn.disabled=!s.url;if(__otaPoll){clearInterval(__otaPoll);__otaPoll=null;}}
+  else if(s.state===5){msg.textContent=s.message||(t.otaSuccess||'更新成功,正在重启');msg.className='msg ok';bar.style.width='100%';chkBtn.disabled=true;pullBtn.disabled=true;if(__otaPoll){clearInterval(__otaPoll);__otaPoll=null;}}
+  else if(s.state===6){msg.textContent=s.message||(t.otaFail||'失败');msg.className='msg err';chkBtn.disabled=false;pullBtn.disabled=!s.url;if(__otaPoll){clearInterval(__otaPoll);__otaPoll=null;}}
+  else{chkBtn.disabled=false;pullBtn.disabled=!s.url;}
+}
+function otaStartPoll(){
+  if(__otaPoll)clearInterval(__otaPoll);
+  var tick=function(){fetch('/api/ota/status'+(token?'?token='+token:'')).then(r=>r.ok?r.json():null).then(j=>{if(j)otaRenderStatus(j);}).catch(function(){});};
+  tick();__otaPoll=setInterval(tick,1500);
+}
+function doOtaCheck(){
+  var msg=document.getElementById('otaPullMsg');
+  msg.textContent='';msg.className='msg';
+  document.getElementById('otaCheckBtn').disabled=true;
+  fetch('/api/ota/check'+(token?'?token='+token:''),{method:'POST'}).then(function(r){
+    if(!r.ok){msg.textContent='HTTP '+r.status;msg.className='msg err';document.getElementById('otaCheckBtn').disabled=false;return;}
+    otaStartPoll();
+  }).catch(function(){msg.textContent='网络错误';msg.className='msg err';document.getElementById('otaCheckBtn').disabled=false;});
+}
+function doOtaPull(){
+  var msg=document.getElementById('otaPullMsg');
+  msg.textContent='';msg.className='msg';
+  if(!confirm((T[lang].otaConfirm)||'确认下载并安装? 期间请勿断电/关闭浏览器')) return;
+  document.getElementById('otaPullBtn').disabled=true;
+  document.getElementById('otaCheckBtn').disabled=true;
+  fetch('/api/ota/pull'+(token?'?token='+token:''),{method:'POST'}).then(function(r){
+    if(!r.ok){msg.textContent='HTTP '+r.status;msg.className='msg err';return;}
+    otaStartPoll();
+  }).catch(function(){msg.textContent='网络错误';msg.className='msg err';});
 }
 function showRebootConfirm(){
   document.getElementById('rebootConfirmBox').style.display='';

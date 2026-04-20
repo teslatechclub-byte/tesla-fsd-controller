@@ -31,6 +31,7 @@ FSDConfig cfg;  // NOLINT(misc-definitions-in-headers)
 #include "mod_das_status.h"
 #include "mod_climate.h"
 #include "mod_perf.h"
+#include "mod_ota.h"
 
 #ifdef WIFI_BRIDGE_ENABLED
 // Single definition of the DNS hook in this TU (main.cpp).

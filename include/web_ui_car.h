@@ -5,7 +5,7 @@
 // Auth：复用 sessionStorage 'fsd_tok'；403 时回 / 输密码。
 // API：完全复用 /api/status、/api/set、/api/reboot、/api/ota、/api/wifi-bridge/*。
 //
-// Tabs：仪表 / 控制 / CAN / 网络 / DNS / OTA / 设置（7 个）
+// Tabs：仪表 / 控制 / CAN / 网络 / DNS / OTA / 测速 / 日志 / 设置（9 个）
 
 #ifdef ARDUINO
 #include <pgmspace.h>
@@ -48,7 +48,8 @@ button{font-family:inherit;cursor:pointer}
 .scene{position:relative;display:grid;grid-template-columns:240px 1fr 170px;gap:20px;align-items:center;min-height:680px}
 /* ── 挡位列 ── */
 .c-gear{text-align:center;position:relative;z-index:2}
-.gear-big{font-size:260px;font-weight:900;line-height:.82;font-family:-apple-system,'SF Pro Display',system-ui,sans-serif;letter-spacing:-16px;color:#64748b;transition:color .35s;text-shadow:0 6px 80px currentColor;display:inline-block}
+.gear-big{font-size:260px;font-weight:900;line-height:.82;font-family:-apple-system,'SF Pro Display',system-ui,sans-serif;letter-spacing:-16px;color:#64748b;transition:color .35s, font-size .35s cubic-bezier(.25,.8,.25,1), letter-spacing .35s;text-shadow:0 6px 80px currentColor;display:inline-block}
+.cluster.driving .gear-big{font-size:160px;letter-spacing:-10px}
 .gear-big.P{color:#60a5fa}
 .gear-big.R{color:#f87171}
 .gear-big.N{color:#94a3b8}
@@ -65,8 +66,11 @@ button{font-family:inherit;cursor:pointer}
 @keyframes ap-dot-blink{0%,100%{opacity:1}50%{opacity:.3}}
 /* ── 速度环 (最大化) ── */
 .speedo-wrap{position:relative;width:100%;max-width:860px;aspect-ratio:1;margin:0 auto}
-.speedo-arc{position:absolute;inset:0;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 30px rgba(56,189,248,.5))}
-.speedo-arc circle{transition:stroke-dasharray .55s cubic-bezier(.3,.9,.3,1)}
+.speedo-arc{position:absolute;inset:0;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 36px rgba(56,189,248,.55));transition:filter .5s}
+.speedo-arc circle{transition:stroke-dasharray .55s cubic-bezier(.3,.9,.3,1),stroke .8s ease}
+.cluster.warn .speedo-arc{filter:drop-shadow(0 0 44px rgba(239,68,68,.9));animation:arc-warn 1s ease-in-out infinite}
+.cluster.warn .spd-huge{color:#fecaca;text-shadow:0 4px 90px rgba(239,68,68,.85)}
+@keyframes arc-warn{0%,100%{filter:drop-shadow(0 0 44px rgba(239,68,68,.9))}50%{filter:drop-shadow(0 0 70px rgba(239,68,68,1))}}
 .speedo-inner{position:absolute;inset:6%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle at 50% 55%,rgba(15,23,42,.55) 0%,rgba(11,17,32,.2) 55%,transparent 72%);border-radius:50%}
 .spd-huge{font-size:340px;font-weight:900;line-height:.8;letter-spacing:-10px;color:#f8fafc;font-variant-numeric:tabular-nums;font-family:-apple-system,'SF Pro Display',system-ui,sans-serif;text-shadow:0 4px 80px rgba(56,189,248,.35);will-change:transform;transition:text-shadow .3s}
 .spd-huge.tick{animation:spd-tick .5s ease-out}
@@ -169,6 +173,55 @@ button{font-family:inherit;cursor:pointer}
 .pin-box input{width:100%;background:#0b1120;border:2px solid #334155;border-radius:12px;padding:16px 20px;color:#e2e8f0;font-size:24px;text-align:center;letter-spacing:8px;font-weight:700}
 .pin-box input:focus{outline:none;border-color:#38bdf8}
 .pin-err{color:#ef4444;font-size:16px;text-align:center;margin-top:12px;min-height:20px}
+/* ── 测速页 ────────────────────────────────────────────────── */
+.perf-speed{background:#131d32;border-radius:16px;padding:24px 20px;margin-bottom:18px;text-align:center;position:relative;overflow:hidden}
+.perf-speed-val{font-size:96px;font-weight:900;color:#38bdf8;line-height:1;letter-spacing:-4px;font-variant-numeric:tabular-nums;transition:color .3s}
+.perf-speed-val.amber{color:#f59e0b}
+.perf-speed-val.red{color:#ef4444}
+.perf-speed-lbl{font-size:14px;color:#64748b;letter-spacing:4px;margin-top:8px;font-weight:700}
+.perf-card{background:#131d32;border:2px solid transparent;border-radius:16px;padding:24px;margin-bottom:16px;transition:border-color .4s,box-shadow .4s}
+.perf-card.done{border-color:#22c55e;box-shadow:0 0 28px rgba(34,197,94,.28)}
+.perf-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.perf-title{font-size:22px;font-weight:700;color:#e2e8f0;letter-spacing:1px}
+.perf-badge{font-size:14px;font-weight:700;padding:6px 16px;border-radius:20px;letter-spacing:2px;transition:all .3s}
+.perf-badge.idle{background:#1e293b;color:#64748b}
+.perf-badge.armed{background:#3d2f00;color:#f59e0b}
+.perf-badge.running{background:#0d2d1a;color:#22c55e;animation:perf-blink .7s ease-in-out infinite}
+.perf-badge.done{background:#0d2d4f;color:#38bdf8}
+@keyframes perf-blink{0%,100%{opacity:1}50%{opacity:.4}}
+.perf-bar{height:6px;background:#1e293b;border-radius:3px;overflow:hidden;margin-bottom:18px}
+.perf-fill{height:100%;width:0%;border-radius:3px;transition:width .1s linear}
+.perf-fill.accel{background:linear-gradient(90deg,#38bdf8,#22c55e)}
+.perf-fill.brake{background:linear-gradient(90deg,#f59e0b,#ef4444)}
+.perf-result{display:flex;align-items:baseline;gap:10px;min-height:68px;margin-bottom:20px;flex-wrap:wrap}
+.perf-val{font-size:60px;font-weight:800;color:#f8fafc;font-variant-numeric:tabular-nums;line-height:1}
+.perf-unit{font-size:20px;color:#64748b;font-weight:500}
+.perf-entry{font-size:14px;color:#94a3b8;background:#1e293b;border-radius:6px;padding:5px 12px;align-self:center;margin-left:6px}
+.perf-actions{display:flex;gap:14px}
+.perf-arm{flex:1;height:76px;background:#c41530;color:#fff;border:none;border-radius:12px;font-size:22px;font-weight:700;letter-spacing:3px;transition:background .2s,opacity .2s}
+.perf-arm:active:not(:disabled){transform:scale(.98)}
+.perf-arm:disabled{opacity:.35;cursor:not-allowed}
+.perf-reset{flex:0 0 140px;height:76px;background:#1e293b;color:#94a3b8;border:2px solid #334155;border-radius:12px;font-size:18px;font-weight:700;letter-spacing:2px}
+.perf-reset:active{transform:scale(.98)}
+.perf-hist-head{display:flex;align-items:center;justify-content:space-between;margin:18px 2px 8px}
+.perf-hist-t{font-size:14px;color:#64748b;font-weight:700;letter-spacing:3px}
+.perf-hist-clr{font-size:13px;color:#475569;cursor:pointer;background:none;border:none;padding:4px 8px}
+.perf-hist-clr:active{color:#94a3b8}
+.perf-hist-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0f172a;border-radius:10px;margin-bottom:6px;border-left:4px solid transparent}
+.perf-hist-row.accel{border-left-color:#38bdf8}
+.perf-hist-row.brake{border-left-color:#f59e0b}
+.perf-hist-ts{font-size:13px;color:#64748b}
+.perf-hist-v{font-size:22px;font-weight:800;color:#f8fafc}
+.perf-hist-u{font-size:14px;color:#94a3b8;margin-left:4px}
+.perf-hist-e{font-size:12px;color:#94a3b8;background:#1e293b;border-radius:5px;padding:4px 10px;margin-left:10px}
+.perf-hist-empty{font-size:14px;color:#334155;text-align:center;padding:16px}
+.perf-disc{background:#3d2f00;border:2px solid #f59e0b;border-radius:14px;padding:18px 22px;margin-bottom:18px;color:#fde68a}
+.perf-disc-t{font-size:18px;font-weight:700;margin-bottom:10px;color:#fbbf24;letter-spacing:1px}
+.perf-disc-b{font-size:14px;line-height:1.9;margin-bottom:14px}
+.perf-disc-b b{color:#fff;font-weight:700}
+.perf-disc-btn{background:#f59e0b;color:#0b1120;border:none;border-radius:10px;padding:12px 22px;font-size:14px;font-weight:700;letter-spacing:2px}
+.perf-disc-btn:active{transform:scale(.98)}
+.perf-note{font-size:13px;color:#475569;text-align:center;padding:10px 0 4px}
 /* ── 响应式：车机浏览器不全屏时 (~800-1200px) 或小屏设备 ─────────── */
 @media (max-width:1400px){
   .app{grid-template-columns:160px 1fr;grid-template-rows:72px 1fr}
@@ -199,11 +252,12 @@ button{font-family:inherit;cursor:pointer}
   .cluster{padding:14px;min-height:auto}
   .scene{grid-template-columns:110px 1fr 96px;gap:8px;min-height:auto}
   .gear-big{font-size:140px;letter-spacing:-8px}
+  .cluster.driving .gear-big{font-size:84px;letter-spacing:-5px}
   .spd-huge{font-size:180px}
   .spd-unit{font-size:18px;letter-spacing:6px}
   .limit-sign{width:96px;height:96px;border-width:7px}
   .limit-num{font-size:38px}
-  .speedo-wrap{max-width:520px}
+  .speedo-wrap{max-width:720px}
   .pin-box{width:92%;max-width:460px;padding:28px}
 }
 </style>
@@ -235,6 +289,7 @@ button{font-family:inherit;cursor:pointer}
     <button class="nbtn" data-page="net"><span class="ic">🌐</span>网络</button>
     <button class="nbtn" data-page="dns"><span class="ic">🛡</span>DNS</button>
     <button class="nbtn" data-page="ota"><span class="ic">⬆️</span>OTA</button>
+    <button class="nbtn" data-page="perf"><span class="ic">🏁</span>测速</button>
     <button class="nbtn" data-page="log"><span class="ic">📋</span>日志</button>
     <button class="nbtn" data-page="set"><span class="ic">🔧</span>设置</button>
   </div>
@@ -258,13 +313,20 @@ button{font-family:inherit;cursor:pointer}
             <svg class="speedo-arc" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
               <defs>
                 <linearGradient id="arcGrad" x1="0" y1="1" x2="1" y2="0">
-                  <stop offset="0%" stop-color="#38bdf8"/>
-                  <stop offset="50%" stop-color="#60a5fa"/>
-                  <stop offset="100%" stop-color="#a78bfa"/>
+                  <stop offset="0%" stop-color="#22c55e"/>
+                  <stop offset="30%" stop-color="#38bdf8"/>
+                  <stop offset="50%" stop-color="#818cf8"/>
+                  <stop offset="65%" stop-color="#f472b6"/>
+                  <stop offset="75%" stop-color="#ef4444"/>
+                  <stop offset="100%" stop-color="#b91c1c"/>
+                </linearGradient>
+                <linearGradient id="arcBg" x1="0" y1="1" x2="1" y2="0">
+                  <stop offset="0%" stop-color="rgba(30,41,59,.55)"/>
+                  <stop offset="100%" stop-color="rgba(51,65,85,.85)"/>
                 </linearGradient>
               </defs>
-              <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(30,41,59,.65)" stroke-width="2.5" stroke-dasharray="212.06 283" transform="rotate(135 50 50)" stroke-linecap="round"/>
-              <circle id="arcFill" cx="50" cy="50" r="45" fill="none" stroke="url(#arcGrad)" stroke-width="2.8" stroke-dasharray="0 283" transform="rotate(135 50 50)" stroke-linecap="round"/>
+              <circle cx="50" cy="50" r="45" fill="none" stroke="url(#arcBg)" stroke-width="4" stroke-dasharray="212.06 283" transform="rotate(135 50 50)" stroke-linecap="round"/>
+              <circle id="arcFill" cx="50" cy="50" r="45" fill="none" stroke="url(#arcGrad)" stroke-width="4.5" stroke-dasharray="0 283" transform="rotate(135 50 50)" stroke-linecap="round"/>
             </svg>
             <div class="speedo-inner">
               <div class="spd-huge" id="vSpeed">0</div>
@@ -545,6 +607,74 @@ button{font-family:inherit;cursor:pointer}
       </div>
     </div>
 
+    <!-- ───── 测速 ───── -->
+    <div class="page" id="pg-perf">
+      <h2>性能测试 · PERFORMANCE</h2>
+
+      <div class="perf-disc" id="perfDisc">
+        <div class="perf-disc-t">⚠️ 使用前须知</div>
+        <div class="perf-disc-b">
+          · 本测试<b>仅限封闭道路或专用场地</b>使用<br>
+          · <b>严禁在公共道路、交通区域进行</b><br>
+          · 测试结果受路面、坡度、温度等影响，<b>数据仅供参考</b>（精度 ±0.1 秒）<br>
+          · 请确保测试区域安全，无行人及障碍物 · 所有风险由使用者自行承担
+        </div>
+        <button class="perf-disc-btn" onclick="perfDiscOk()">我已了解，在封闭场地使用</button>
+      </div>
+
+      <div class="perf-speed">
+        <div class="perf-speed-val" id="perfSpd">--</div>
+        <div class="perf-speed-lbl">KM/H</div>
+      </div>
+
+      <div class="perf-card" id="perfCardA">
+        <div class="perf-head">
+          <div class="perf-title">0 → 100 km/h</div>
+          <span class="perf-badge idle" id="perfBadgeA">待命</span>
+        </div>
+        <div class="perf-bar"><div class="perf-fill accel" id="perfBarA"></div></div>
+        <div class="perf-result">
+          <span class="perf-val" id="perfValA">--</span>
+          <span class="perf-unit" id="perfUnitA"></span>
+        </div>
+        <div class="perf-actions">
+          <button class="perf-arm" id="perfArmA" onclick="perfArm('accel')">预 备</button>
+          <button class="perf-reset" onclick="perfReset('accel')">重置</button>
+        </div>
+      </div>
+
+      <div class="perf-card" id="perfCardB">
+        <div class="perf-head">
+          <div class="perf-title">100 → 0 km/h</div>
+          <span class="perf-badge idle" id="perfBadgeB">待命</span>
+        </div>
+        <div class="perf-bar"><div class="perf-fill brake" id="perfBarB"></div></div>
+        <div class="perf-result">
+          <span class="perf-val" id="perfValB">--</span>
+          <span class="perf-unit" id="perfUnitB"></span>
+          <span class="perf-entry" id="perfEntryB" style="display:none"></span>
+        </div>
+        <div class="perf-actions">
+          <button class="perf-arm" id="perfArmB" onclick="perfArm('brake')">预 备</button>
+          <button class="perf-reset" onclick="perfReset('brake')">重置</button>
+        </div>
+      </div>
+
+      <div class="perf-note">精度约 ±0.1 秒（受 CAN 10Hz 帧率限制）· 仅供参考 · 请在安全场地使用</div>
+
+      <div class="perf-hist-head">
+        <span class="perf-hist-t">0→100 历史</span>
+        <button class="perf-hist-clr" onclick="perfClear('accel')">清除</button>
+      </div>
+      <div id="perfHistA"></div>
+
+      <div class="perf-hist-head">
+        <span class="perf-hist-t">100→0 历史</span>
+        <button class="perf-hist-clr" onclick="perfClear('brake')">清除</button>
+      </div>
+      <div id="perfHistB"></div>
+    </div>
+
     <!-- ───── 日志 ───── -->
     <div class="page" id="pg-log">
       <h2>诊断日志 · LOG</h2>
@@ -658,7 +788,7 @@ window.__spdDisplay = 0; window.__spdTarget = 0; window.__spdLast = 0;
   var t = window.__spdTarget || 0;
   var v = window.__spdDisplay || 0;
   var diff = t - v;
-  if(Math.abs(diff) > 0.4){ v += diff * 0.085; }
+  if(Math.abs(diff) > 0.4){ v += diff * 0.28; }
   else { v = t; }
   window.__spdDisplay = v;
   var show = Math.round(v);
@@ -668,6 +798,21 @@ window.__spdDisplay = 0; window.__spdTarget = 0; window.__spdLast = 0;
   if(arcFill){
     var pct = Math.min(1, Math.max(0, v/200));
     arcFill.setAttribute('stroke-dasharray', (212.06 * pct).toFixed(1) + ' 283');
+  }
+  var cl = document.querySelector('.cluster');
+  if(cl){
+    var drv = v >= 3;
+    if(drv !== !!window.__drv){ cl.classList.toggle('driving', drv); window.__drv = drv; }
+    var warn = v >= 150;
+    if(warn !== !!window.__warn){ cl.classList.toggle('warn', warn); window.__warn = warn; }
+  }
+  // 测速页速度：复用同一 RAF 平滑值
+  var pEl = document.getElementById('perfSpd');
+  if(pEl){
+    var pShow = show > 0 ? String(show) : '--';
+    if(pEl.textContent !== pShow) pEl.textContent = pShow;
+    var pCls = 'perf-speed-val' + (show >= 100 ? ' red' : show >= 60 ? ' amber' : '');
+    if(pEl.className !== pCls) pEl.className = pCls;
   }
   requestAnimationFrame(smoothSpeed);
 })();
@@ -744,7 +889,7 @@ function render(d){
 
   // ── 仪表盘 ──
   // 速度：仅设置目标值；RAF 循环负责平滑过渡
-  var spd = Math.round(d.speedD * 0.2);
+  var spd = Math.round(d.speedD / 10);
   var newSpd = (d.canOK && isFinite(spd)) ? spd : 0;
   var spdEl = document.getElementById('vSpeed');
   window.__spdTarget = newSpd;
@@ -911,7 +1056,19 @@ function render(d){
   document.getElementById('cRx').textContent = d.rx;
   document.getElementById('cMod').textContent = d.modified;
   document.getElementById('cErr').textContent = d.errors;
-  document.getElementById('cRate').textContent = '~';
+  // CAN 速率：按 rx 差值 / 时间差估算（客户端计算，后端不维护）
+  var now = Date.now();
+  if(window.__rxPrev !== undefined && window.__rxPrevT){
+    var dt = (now - window.__rxPrevT) / 1000;
+    var dr = d.rx - window.__rxPrev;
+    if(dt > 0 && dr >= 0){
+      var hz = Math.round(dr / dt);
+      document.getElementById('cRate').textContent = hz;
+    }
+  } else {
+    document.getElementById('cRate').textContent = '--';
+  }
+  window.__rxPrev = d.rx; window.__rxPrevT = now;
   document.getElementById('cOK').textContent = d.canOK ? '✅ OK' : '❌ FAIL';
   document.getElementById('cHw').textContent = ['未知','HW3','HW4'][d.hwDetected]||'未知';
   document.getElementById('cFsd').textContent = d.fsdTriggered ? '✅ 已触发' : '-';
@@ -931,7 +1088,166 @@ function render(d){
   // OTA 页
   document.getElementById('oVer').textContent = d.version;
   document.getElementById('oVar').textContent = d.variant||'baseline';
+
+  // 测速页：若加载了则同步状态
+  perfRender(d);
 }
+
+// ───── 测速 ─────
+var PERF_BADGE = ['idle','armed','running','done'];
+var PERF_TXT = ['待命','已备战','计时中','完成'];
+var perfPrev = {accel:-1, brake:-1};  // -1: 首次 poll 用当前值初始化，避免页面刷新时把已完成状态当新完成重复入库
+var perfAnimDone = {accel:false, brake:false};
+var perfBrakeEntry = 0;
+function perfAck(){ try{ return sessionStorage.getItem('perf_disc_ok') === '1'; }catch(e){ return false; } }
+function perfDiscOk(){
+  try{ sessionStorage.setItem('perf_disc_ok','1'); }catch(e){}
+  document.getElementById('perfDisc').style.display = 'none';
+  // 恢复按钮可用（当前 state 若非 running/done）
+  if(last) perfApplyState('accel', last.perfAccel||0, last.perfAccelMs||0, Math.round((last.speedD||0)/10));
+  if(last) perfApplyState('brake', last.perfBrake||0, last.perfBrakeMs||0, Math.round((last.speedD||0)/10));
+}
+function perfCountUp(elId, targetSec, duration){
+  var el = document.getElementById(elId);
+  var start = performance.now();
+  function step(now){
+    var p = Math.min((now-start)/duration, 1);
+    var e = 1 - Math.pow(1-p, 3);
+    el.textContent = (targetSec*e).toFixed(2);
+    if(p < 1) requestAnimationFrame(step);
+    else el.textContent = targetSec.toFixed(2);
+  }
+  requestAnimationFrame(step);
+}
+function perfFlash(id){
+  var c = document.getElementById(id);
+  c.classList.add('done');
+  setTimeout(function(){ c.classList.remove('done'); }, 1500);
+}
+function perfApplyState(which, state, ms, spd){
+  var isA = (which === 'accel');
+  var badge = document.getElementById(isA ? 'perfBadgeA' : 'perfBadgeB');
+  var val = document.getElementById(isA ? 'perfValA' : 'perfValB');
+  var unit = document.getElementById(isA ? 'perfUnitA' : 'perfUnitB');
+  var bar = document.getElementById(isA ? 'perfBarA' : 'perfBarB');
+  var arm = document.getElementById(isA ? 'perfArmA' : 'perfArmB');
+  badge.className = 'perf-badge ' + (PERF_BADGE[state] || 'idle');
+  badge.textContent = PERF_TXT[state] || '--';
+  if(state === 2){
+    var pct = 0;
+    if(isA) pct = Math.min(spd, 100);
+    else pct = Math.min(100, Math.max(0, perfBrakeEntry > 0 ? (1 - spd/perfBrakeEntry)*100 : 0));
+    bar.style.width = pct + '%';
+  } else if(state === 3){
+    bar.style.width = '100%';
+  } else {
+    bar.style.width = '0%';
+  }
+  arm.disabled = (state === 2 || state === 3) || !perfAck();
+  if(state === 3 && ms > 0){
+    unit.textContent = '秒';
+    if(!perfAnimDone[which]){
+      perfCountUp(isA ? 'perfValA' : 'perfValB', ms/1000, 900);
+      perfFlash(isA ? 'perfCardA' : 'perfCardB');
+      perfAnimDone[which] = true;
+      if(!isA){
+        var et = document.getElementById('perfEntryB');
+        if(perfBrakeEntry > 0){ et.textContent = '进入 ' + perfBrakeEntry + ' km/h'; et.style.display = ''; }
+      }
+    }
+  } else if(state === 2){
+    val.textContent = '...';
+    unit.textContent = '';
+  } else {
+    val.textContent = '--';
+    unit.textContent = '';
+    perfAnimDone[which] = false;
+    if(!isA) document.getElementById('perfEntryB').style.display = 'none';
+  }
+}
+function perfRender(d){
+  if(!d) return;
+  var spd = Math.round((d.speedD||0)/10);
+  perfBrakeEntry = d.brakeEntryKph || 0;
+  var na = d.perfAccel||0, nb = d.perfBrake||0;
+  // 首次 poll：用当前状态初始化 prev，避免页面刷新时对已有 DONE 状态重复入库
+  if(perfPrev.accel === -1){
+    perfPrev.accel = na;
+    if(na === 3){ perfAnimDone.accel = true; }  // 跳过动画，避免刷新后弹结果
+  }
+  if(perfPrev.brake === -1){
+    perfPrev.brake = nb;
+    if(nb === 3){ perfAnimDone.brake = true; }
+  }
+  if(perfPrev.accel !== 3 && na === 3 && d.perfAccelMs > 0) perfSave('accel', d.perfAccelMs, 0);
+  if(perfPrev.brake !== 3 && nb === 3 && d.perfBrakeMs > 0) perfSave('brake', d.perfBrakeMs, d.brakeEntryKph||0);
+  perfApplyState('accel', na, d.perfAccelMs||0, spd);
+  perfApplyState('brake', nb, d.perfBrakeMs||0, spd);
+  perfPrev.accel = na; perfPrev.brake = nb;
+  // 若已 DONE 且跳过了动画，把结果直接写上
+  if(na === 3 && d.perfAccelMs > 0 && document.getElementById('perfValA').textContent === '--'){
+    document.getElementById('perfValA').textContent = (d.perfAccelMs/1000).toFixed(2);
+    document.getElementById('perfUnitA').textContent = '秒';
+  }
+  if(nb === 3 && d.perfBrakeMs > 0 && document.getElementById('perfValB').textContent === '--'){
+    document.getElementById('perfValB').textContent = (d.perfBrakeMs/1000).toFixed(2);
+    document.getElementById('perfUnitB').textContent = '秒';
+    var et = document.getElementById('perfEntryB');
+    if(perfBrakeEntry > 0){ et.textContent = '进入 '+perfBrakeEntry+' km/h'; et.style.display = ''; }
+  }
+}
+function perfArm(which){
+  if(!perfAck()){ toast('请先确认使用须知', 'err'); return; }
+  fetch('/api/perf?cmd=arm_'+which+(tok?'&token='+encodeURIComponent(tok):''))
+    .then(function(r){return r.json();}).then(function(){ poll(); });
+}
+function perfReset(which){
+  perfAnimDone[which] = false;
+  if(which === 'brake') document.getElementById('perfEntryB').style.display = 'none';
+  fetch('/api/perf?cmd=reset_'+which+(tok?'&token='+encodeURIComponent(tok):''))
+    .then(function(r){return r.json();}).then(function(){ poll(); });
+}
+function perfSave(type, ms, entry){
+  var key = 'perf_hist_'+type;
+  var arr = [];
+  try{ arr = JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){}
+  arr.unshift({ts:Date.now(), ms:ms, entry:entry||0});
+  if(arr.length > 10) arr = arr.slice(0, 10);
+  try{ localStorage.setItem(key, JSON.stringify(arr)); }catch(e){}
+  perfRenderHist(type);
+}
+function perfClear(type){
+  try{ localStorage.removeItem('perf_hist_'+type); }catch(e){}
+  perfRenderHist(type);
+}
+function perfFmtTs(ts){
+  var d = new Date(ts);
+  var p = function(n){ return n<10?'0'+n:''+n; };
+  return p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+function perfRenderHist(type){
+  var listEl = document.getElementById(type==='accel' ? 'perfHistA' : 'perfHistB');
+  if(!listEl) return;
+  var arr = [];
+  try{ arr = JSON.parse(localStorage.getItem('perf_hist_'+type)||'[]'); }catch(e){}
+  if(arr.length === 0){ listEl.innerHTML = '<div class="perf-hist-empty">暂无记录</div>'; return; }
+  var html = '';
+  for(var i=0;i<arr.length;i++){
+    var r = arr[i];
+    html += '<div class="perf-hist-row '+type+'">';
+    html += '<span class="perf-hist-ts">'+perfFmtTs(r.ts)+'</span>';
+    html += '<span><span class="perf-hist-v">'+(r.ms/1000).toFixed(2)+'</span><span class="perf-hist-u">秒</span>';
+    if(type === 'brake' && r.entry > 0) html += '<span class="perf-hist-e">进入 '+r.entry+' km/h</span>';
+    html += '</span></div>';
+  }
+  listEl.innerHTML = html;
+}
+// 初始化：若本会话已确认过免责声明，隐藏
+try{ if(sessionStorage.getItem('perf_disc_ok') === '1'){
+  var _pd = document.getElementById('perfDisc'); if(_pd) _pd.style.display = 'none';
+} }catch(e){}
+perfRenderHist('accel');
+perfRenderHist('brake');
 
 function setTog(id, on){
   var t = document.getElementById(id);
@@ -1301,7 +1617,7 @@ document.addEventListener('focusin', function(e){
 // ───── 启动 ─────
 poll();
 brPoll();
-pollT = setInterval(poll, 2000);
+pollT = setInterval(poll, 250);
 setInterval(brPoll, 4000);
 </script>
 </body>
