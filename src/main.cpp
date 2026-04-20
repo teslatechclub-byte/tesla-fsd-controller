@@ -1347,8 +1347,15 @@ void setup() {
                             : "[Boot] crash count=%d\n", crashes);
     }
 
-    // ── Watchdog: 5-second timeout ─────────────────────────────────
-    esp_task_wdt_init(5, true);  // 5s timeout, panic on trigger
+    // ── Watchdog: 30-second timeout ────────────────────────────────
+    // Earlier 5 s was too aggressive: legitimate slow operations in the
+    // main loop (WiFi.begin() during AP+STA channel switch, SPIFFS flush
+    // under flash contention, mbedTLS handshake blocking the Wi-Fi stack
+    // during OTA check) routinely exceed 5 s and cause rst:0xc
+    // (RTC_SW_CPU_RST) panics on the Waveshare Wi-Fi bridge in the field.
+    // 30 s still catches real infinite loops / deadlocks without killing
+    // the device during normal connectivity hiccups.
+    esp_task_wdt_init(30, true);  // 30s timeout, panic on trigger
 
     // Migrate NVS keys from verbose names to obfuscated names (one-time, on update)
     migrateNvsKeys();
