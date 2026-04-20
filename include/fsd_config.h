@@ -15,9 +15,8 @@ struct FSDConfig {
     volatile bool     emergencyDetection  = true;
     volatile bool     forceActivate       = false;   // bypass isFSDSelectedInUI (regions without TLSSC)
     volatile bool     overrideSpeedLimit  = false;   // Legacy: set UI_visionSpeedSlider=100 in frame 1080
-    volatile int      hw3SpeedOffset      = 0;       // % of speed limit, decoded from mux-0 (0-100)
-    volatile int      hw3OffsetManual     = -1;      // -1=auto(from CAN), 0-100=% of current speed limit
-    volatile bool     hw3HighSpeedPassthrough = true;// ≥80 km/h limits: pass Tesla's native EAP offset through unchanged
+    volatile int      hw3SpeedOffset      = 0;       // stock offset from mux-0 data[3] as pct*5 (0-100); display only
+    volatile bool     hw3AutoSpeed        = true;    // HW3 auto speed targeting: <60→64, =60→100, 60-79→85, ≥80→stock passthrough
     volatile uint8_t  hw4OffsetRaw       = 0;       // HW4 mux-2 data[1][5:0]; 0=off (presets: 7=+5,10=+7,14=+10,21=+15 km/h)
     volatile uint8_t  hwDetected          = 0;       // from 0x398: 0=unknown, 1=HW3, 2=HW4 (informational only)
     volatile int8_t   gatewayAutopilot    = -1;      // from 0x7FF mux-2: -1=unseen, 0=NONE,1=HIGHWAY,2=ENHANCED,3=SELF_DRIVING,4=BASIC
@@ -59,20 +58,6 @@ struct FSDConfig {
     volatile bool     apRestart           = false;
     volatile uint8_t  apRestartCache[8]   = {};    // last received 0x293 raw bytes
     volatile bool     apRestartValid      = false; // cache has at least one frame
-
-    // HW3 Smart Speed Offset  (5-tier)
-    volatile bool    hw3SmartEnable       = false; // auto-adjust offset by speed tier
-    volatile uint8_t hw3SmartT1           = 40;    // kph threshold: tier1/2 boundary
-    volatile uint8_t hw3SmartT2           = 60;    // kph threshold: tier2/3 boundary
-    volatile uint8_t hw3SmartT3           = 80;    // kph threshold: tier3/4 boundary
-    volatile uint8_t hw3SmartT4           = 100;   // kph threshold: tier4/5 boundary
-    volatile uint8_t hw3SmartO1           = 50;    // % offset tier1 (≤T1): speedLimit * O1 / 100
-    volatile uint8_t hw3SmartO2           = 25;    // % offset tier2 (T1~T2)
-    volatile uint8_t hw3SmartO3           = 15;    // % offset tier3 (T2~T3)
-    volatile uint8_t hw3SmartO4           = 10;    // % offset tier4 (T3~T4)
-    volatile uint8_t hw3SmartO5           = 8;     // % offset tier5 (≥T4)
-    volatile uint8_t hw3SmartLastPct      = 12;    // last valid computed % offset (fallback when limit=0)
-    volatile uint8_t hw3SmartActiveTier   = 0;     // currently active tier: 1-5; 0=smart disabled or limit unknown
 
     // Performance test — 0→100 acceleration and 100→0 braking
     volatile uint8_t  perfAccelState      = 0;   // 0=idle,1=armed,2=running,3=done

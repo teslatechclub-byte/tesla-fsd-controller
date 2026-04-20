@@ -44,6 +44,17 @@ static Preferences    prefs;
 volatile bool         otaPendingRestart = false;
 static bool           safeModeActive    = false;
 
+// Persist restart reason to NVS so it survives ANY reboot type (sw/panic/wdt/brownout).
+// Read back in setup() → logged as "prev: <reason>". Cleared after read.
+// Not static: forward-declared in mod_ota.h so pull-update path can call it.
+void saveRestartReason(const char* tag) {
+    Preferences diag;
+    if (diag.begin("diag", false)) {
+        diag.putString("rr", tag);
+        diag.end();
+    }
+}
+
 // ── Time sync (browser-pushed Unix timestamp) ──────────────────────
 static volatile uint32_t timeUnixBase   = 0;   // Unix time at sync point
 static volatile uint32_t timeMillisBase = 0;   // millis() at sync point
@@ -96,18 +107,7 @@ static bool checkToken(AsyncWebServerRequest* req) {
 #define NV_ISA_CHM   "a5"
 #define NV_EM_DET    "a6"
 #define NV_CN_MODE   "a7"
-#define NV_HW3_OFF   "a8"
 #define NV_AP_RST    "a9"
-#define NV_SM_EN     "b1"
-#define NV_SM_T1     "b2"
-#define NV_SM_T2     "b3"
-#define NV_SM_T3     "b4"
-#define NV_SM_T4     "b5"
-#define NV_SM_O1     "b6"
-#define NV_SM_O2     "b7"
-#define NV_SM_O3     "b8"
-#define NV_SM_O4     "b9"
-#define NV_SM_O5     "c1"
 #define NV_PRECOND   "c2"
 #define NV_AP_SSID   "c4"
 #define NV_AP_PASS   "c5"
@@ -118,7 +118,7 @@ static bool checkToken(AsyncWebServerRequest* req) {
 #define NV_PIN       "p1"
 #define NV_HW4_OFF   "d1"
 #define NV_TRACK_MD  "d2"
-#define NV_HW3_PT    "d3"   // hw3HighSpeedPassthrough: ≥80 km/h limits use factory EAP offset
+#define NV_HW3_AUTO  "d4"   // hw3AutoSpeed: enable auto speed targeting for low-speed limits
 
 // ═══════════════════════════════════════════
 //  Config persistence (NVS)
@@ -137,18 +137,20 @@ static void migrateNvsKeys() {
         p.putBool(NV_ISA_CHM,  p.getBool("isaChm",    false)); p.remove("isaChm");
         p.putBool(NV_EM_DET,   p.getBool("emDet",     true));  p.remove("emDet");
         p.putBool(NV_CN_MODE,  p.getBool("cnMode",    false)); p.remove("cnMode");
-        p.putInt(NV_HW3_OFF,   p.getInt("hw3Off",     -1));    p.remove("hw3Off");
         p.putBool(NV_AP_RST,   p.getBool("apRestart", false)); p.remove("apRestart");
-        p.putBool(NV_SM_EN,    p.getBool("hw3SmEn",   false)); p.remove("hw3SmEn");
-        p.putUChar(NV_SM_T1,   p.getUChar("hw3SmT1",  40));   p.remove("hw3SmT1");
-        p.putUChar(NV_SM_T2,   p.getUChar("hw3SmT2",  60));   p.remove("hw3SmT2");
-        p.putUChar(NV_SM_T3,   p.getUChar("hw3SmT3",  80));   p.remove("hw3SmT3");
-        p.putUChar(NV_SM_T4,   p.getUChar("hw3SmT4",  100));  p.remove("hw3SmT4");
-        p.putUChar(NV_SM_O1,   p.getUChar("hw3SmO1",  20));   p.remove("hw3SmO1");
-        p.putUChar(NV_SM_O2,   p.getUChar("hw3SmO2",  15));   p.remove("hw3SmO2");
-        p.putUChar(NV_SM_O3,   p.getUChar("hw3SmO3",  12));   p.remove("hw3SmO3");
-        p.putUChar(NV_SM_O4,   p.getUChar("hw3SmO4",  10));   p.remove("hw3SmO4");
-        p.putUChar(NV_SM_O5,   p.getUChar("hw3SmO5",  8));    p.remove("hw3SmO5");
+        // Legacy HW3 manual/smart/passthrough keys — feature removed in favor of
+        // single hw3AutoSpeed toggle (see NV_HW3_AUTO). Drop any prior values.
+        if (p.isKey("hw3Off"))   p.remove("hw3Off");
+        if (p.isKey("hw3SmEn"))  p.remove("hw3SmEn");
+        if (p.isKey("hw3SmT1"))  p.remove("hw3SmT1");
+        if (p.isKey("hw3SmT2"))  p.remove("hw3SmT2");
+        if (p.isKey("hw3SmT3"))  p.remove("hw3SmT3");
+        if (p.isKey("hw3SmT4"))  p.remove("hw3SmT4");
+        if (p.isKey("hw3SmO1"))  p.remove("hw3SmO1");
+        if (p.isKey("hw3SmO2"))  p.remove("hw3SmO2");
+        if (p.isKey("hw3SmO3"))  p.remove("hw3SmO3");
+        if (p.isKey("hw3SmO4"))  p.remove("hw3SmO4");
+        if (p.isKey("hw3SmO5"))  p.remove("hw3SmO5");
         if (p.isKey("precond")) p.remove("precond");  // feature removed
         if (p.isKey("apSSID")) { p.putString(NV_AP_SSID, p.getString("apSSID")); p.remove("apSSID"); }
         if (p.isKey("apPass")) { p.putString(NV_AP_PASS, p.getString("apPass")); p.remove("apPass"); }
@@ -164,6 +166,10 @@ static void migrateNvsKeys() {
         p.putBool(NV_OVR_SL, false);
         DLOGLN("[NVS] overrideSpeedLimit reset to false after c5→c3 migration");
     }
+    // Remove retired obfuscated keys from the HW3 smart/manual/passthrough era.
+    // These were all written by the previous firmware but the feature is gone.
+    const char* retired[] = { "a8", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9", "c1", "d3" };
+    for (auto* k : retired) if (p.isKey(k)) p.remove(k);
     p.end();
     // Migrate PIN
     Preferences sec;
@@ -184,24 +190,13 @@ void loadConfig() {
     cfg.emergencyDetection = prefs.getBool(NV_EM_DET,   true);
     cfg.forceActivate      = prefs.getBool(NV_CN_MODE,  false);
     cfg.overrideSpeedLimit = prefs.getBool(NV_OVR_SL,   false);
-    cfg.hw3OffsetManual    = prefs.getInt(NV_HW3_OFF,   -1);
     cfg.apRestart          = prefs.getBool(NV_AP_RST,   false);
-    cfg.hw3SmartEnable     = prefs.getBool(NV_SM_EN,    false);
-    cfg.hw3SmartT1         = prefs.getUChar(NV_SM_T1,   40);
-    cfg.hw3SmartT2         = prefs.getUChar(NV_SM_T2,   60);
-    cfg.hw3SmartT3         = prefs.getUChar(NV_SM_T3,   80);
-    cfg.hw3SmartT4         = prefs.getUChar(NV_SM_T4,   100);
-    cfg.hw3SmartO1         = prefs.getUChar(NV_SM_O1,   50);
-    cfg.hw3SmartO2         = prefs.getUChar(NV_SM_O2,   25);
-    cfg.hw3SmartO3         = prefs.getUChar(NV_SM_O3,   15);
-    cfg.hw3SmartO4         = prefs.getUChar(NV_SM_O4,   10);
-    cfg.hw3SmartO5         = prefs.getUChar(NV_SM_O5,   8);
     // Legacy NVS key wipe: older firmware wrote a precondition bool here. Remove
     // so it stops consuming NVS space. Feature was removed (needs Vehicle CAN).
     if (prefs.isKey(NV_PRECOND)) prefs.remove(NV_PRECOND);
     cfg.hw4OffsetRaw       = prefs.getUChar(NV_HW4_OFF, 0);
     cfg.trackModeEnable    = prefs.getBool(NV_TRACK_MD, false);
-    cfg.hw3HighSpeedPassthrough = prefs.getBool(NV_HW3_PT, true);
+    cfg.hw3AutoSpeed       = prefs.getBool(NV_HW3_AUTO, true);
     strlcpy(apSSID,  prefs.getString(NV_AP_SSID,  "FSD-Controller").c_str(), sizeof(apSSID));
     strlcpy(apPass,  prefs.getString(NV_AP_PASS,  "12345678").c_str(),       sizeof(apPass));
     strlcpy(staSSID, prefs.getString(NV_STA_SSID, "").c_str(),               sizeof(staSSID));
@@ -218,24 +213,9 @@ void loadConfig() {
     // Clamp values
     if (cfg.hwMode > 2)       cfg.hwMode = 2;
     if (cfg.speedProfile > 4) cfg.speedProfile = 1;
-
-    cfg.hw3SmartLastPct = 10;  // fallback % offset when speed limit unknown
 }
 
 void saveConfig() {
-    // Snapshot Smart T*/O* values under gHw3SmartMux — canTask (Core 1) can
-    // mutate these via adaptive tuning, NVS write would otherwise capture a
-    // torn tier boundary (e.g. t3>t4) that never existed at any instant.
-    uint8_t smT1, smT2, smT3, smT4, smO1, smO2, smO3, smO4, smO5;
-    bool    smEn;
-    portENTER_CRITICAL(&gHw3SmartMux);
-    smEn = cfg.hw3SmartEnable;
-    smT1 = cfg.hw3SmartT1; smT2 = cfg.hw3SmartT2;
-    smT3 = cfg.hw3SmartT3; smT4 = cfg.hw3SmartT4;
-    smO1 = cfg.hw3SmartO1; smO2 = cfg.hw3SmartO2; smO3 = cfg.hw3SmartO3;
-    smO4 = cfg.hw3SmartO4; smO5 = cfg.hw3SmartO5;
-    portEXIT_CRITICAL(&gHw3SmartMux);
-
     prefs.begin("fsd", false);
     prefs.putBool(NV_FSD_EN,    cfg.fsdEnable);
     prefs.putUChar(NV_HW_MODE,  cfg.hwMode);
@@ -245,22 +225,11 @@ void saveConfig() {
     prefs.putBool(NV_EM_DET,    cfg.emergencyDetection);
     prefs.putBool(NV_CN_MODE,   cfg.forceActivate);
     prefs.putBool(NV_OVR_SL,    cfg.overrideSpeedLimit);
-    prefs.putInt(NV_HW3_OFF,    cfg.hw3OffsetManual);
     prefs.putBool(NV_AP_RST,    cfg.apRestart);
-    prefs.putBool(NV_SM_EN,     smEn);
-    prefs.putUChar(NV_SM_T1,    smT1);
-    prefs.putUChar(NV_SM_T2,    smT2);
-    prefs.putUChar(NV_SM_T3,    smT3);
-    prefs.putUChar(NV_SM_T4,    smT4);
-    prefs.putUChar(NV_SM_O1,    smO1);
-    prefs.putUChar(NV_SM_O2,    smO2);
-    prefs.putUChar(NV_SM_O3,    smO3);
-    prefs.putUChar(NV_SM_O4,    smO4);
-    prefs.putUChar(NV_SM_O5,    smO5);
     // NV_PRECOND no longer written — field is runtime-only until a UI surface returns.
     prefs.putUChar(NV_HW4_OFF,  cfg.hw4OffsetRaw);
     prefs.putBool(NV_TRACK_MD,  cfg.trackModeEnable);
-    prefs.putBool(NV_HW3_PT,    cfg.hw3HighSpeedPassthrough);
+    prefs.putBool(NV_HW3_AUTO,  cfg.hw3AutoSpeed);
     // WiFi keys written directly by /api/wifi — not touched here.
     prefs.end();
 }
@@ -476,10 +445,8 @@ void setupWebServer() {
             "\"canOK\":%s,\"fsdTriggered\":%s,"
             "\"fsdEnable\":%d,\"hwMode\":%d,\"speedProfile\":%d,\"gwAutopilot\":%d,"
             "\"profileMode\":%d,\"isaChime\":%d,\"emergencyDet\":%d,\"forceActivate\":%d,\"overrideSL\":%d,"
-            "\"hw3Offset\":%d,\"hw3AutoOffset\":%d,\"hwDetected\":%d,"
-            "\"hw3Smart\":%d,\"hw3SmT1\":%d,\"hw3SmT2\":%d,\"hw3SmT3\":%d,\"hw3SmT4\":%d,"
-            "\"hw3SmO1\":%d,\"hw3SmO2\":%d,\"hw3SmO3\":%d,\"hw3SmO4\":%d,\"hw3SmO5\":%d,"
-            "\"fusedLimit\":%u,\"smartTier\":%u,\"smartPct\":%u,"
+            "\"hw3AutoOffset\":%d,\"hwDetected\":%d,"
+            "\"hw3AutoSpeed\":%d,\"fusedLimit\":%u,"
             "\"tempSeen\":%s,\"tempInRaw\":%u,\"tempOutRaw\":%u,"
             "\"bmsSeen\":%s,\"bmsV\":%u,\"bmsA\":%d,\"bmsSoc\":%u,"
             "\"bmsMinT\":%d,\"bmsMaxT\":%d,"
@@ -490,7 +457,7 @@ void setupWebServer() {
             "\"visionLimit\":%u,\"nagLevel\":%u,\"fcw\":%u,\"accState\":%u,\"brake\":%s,"
             "\"sideCol\":%u,\"laneWarn\":%u,\"laneChg\":%u,"
             "\"autosteer\":%s,\"aeb\":%s,\"fcwOn\":%s,"
-            "\"apRestart\":%s,\"hw4Offset\":%u,\"trackMode\":%d,\"hw3HiPass\":%d,"
+            "\"apRestart\":%s,\"hw4Offset\":%u,\"trackMode\":%d,"
             "\"perfAccel\":%u,\"perfBrake\":%u,\"perfAccelMs\":%u,\"perfBrakeMs\":%u,\"brakeEntryKph\":%u,"
             "\"apSSID\":\"%s\",\"staSSID\":\"%s\",\"staIP\":\"%s\",\"staOK\":%s,"
             "\"variant\":\"%s\",\"version\":\"%s\"}",
@@ -507,13 +474,10 @@ void setupWebServer() {
             (int)cfg.emergencyDetection,
             (int)cfg.forceActivate,
             (int)cfg.overrideSpeedLimit,
-            (int)cfg.hw3OffsetManual,
             (int)cfg.hw3SpeedOffset,
             (int)cfg.hwDetected,
-            (int)cfg.hw3SmartEnable,
-            (int)cfg.hw3SmartT1, (int)cfg.hw3SmartT2, (int)cfg.hw3SmartT3, (int)cfg.hw3SmartT4,
-            (int)cfg.hw3SmartO1, (int)cfg.hw3SmartO2, (int)cfg.hw3SmartO3, (int)cfg.hw3SmartO4, (int)cfg.hw3SmartO5,
-            (unsigned)cfg.fusedSpeedLimit, (unsigned)cfg.hw3SmartActiveTier, (unsigned)cfg.hw3SmartLastPct,
+            (int)cfg.hw3AutoSpeed,
+            (unsigned)cfg.fusedSpeedLimit,
             cfg.tempSeen ? "true" : "false",
             (unsigned)cfg.tempInsideRaw,    // × 0.25 = °C  (done in JS)
             (unsigned)cfg.tempOutsideRaw,   // × 0.5 − 40 = °C  (done in JS)
@@ -545,7 +509,6 @@ void setupWebServer() {
             cfg.apRestart   ? "true" : "false",
             (unsigned)cfg.hw4OffsetRaw,
             (int)cfg.trackModeEnable,
-            (int)cfg.hw3HighSpeedPassthrough,
             (unsigned)cfg.perfAccelState, (unsigned)cfg.perfBrakeState,
             (unsigned)cfg.perfAccelMs,    (unsigned)cfg.perfBrakeMs,
             (unsigned)cfg.perfBrakeEntryKph,
@@ -618,10 +581,6 @@ void setupWebServer() {
             uint8_t curHw = req->hasParam("hwMode") ? (uint8_t)req->getParam("hwMode")->value().toInt() : cfg.hwMode;
             if (curHw != 2 && raw > 2) { req->send(400, "text/plain", "speedProfile out of range for non-HW4"); return; }
         }
-        if (req->hasParam("hw3Offset")) {
-            int v = req->getParam("hw3Offset")->value().toInt();
-            if (v != -1 && (v < 0 || v > 100)) { req->send(400, "text/plain", "bad hw3Offset"); return; }
-        }
         if (req->hasParam("hw4Offset")) {
             int raw = req->getParam("hw4Offset")->value().toInt();
             if (raw != 0 && raw != 7 && raw != 10 && raw != 14 && raw != 21) {
@@ -670,48 +629,9 @@ void setupWebServer() {
             bool v = req->getParam("overrideSL")->value().toInt() != 0;
             if (v != cfg.overrideSpeedLimit) { cfg.overrideSpeedLimit = v; changed = true; }
         }
-        if (req->hasParam("hw3Offset")) {
-            int v = req->getParam("hw3Offset")->value().toInt();
-            if (v != cfg.hw3OffsetManual) { cfg.hw3OffsetManual = v; changed = true; }
-        }
-        if (req->hasParam("hw3Smart")) {
-            bool v = req->getParam("hw3Smart")->value().toInt() != 0;
-            if (v != cfg.hw3SmartEnable) { cfg.hw3SmartEnable = v; changed = true; }
-        }
-        // Smart thresholds + offsets: apply all under the HW3 smart mux so canTask
-        // can't observe a partial update (T2<T1 transient, etc.)
-        bool smartTouched = req->hasParam("hw3SmT1") || req->hasParam("hw3SmT2") ||
-                            req->hasParam("hw3SmT3") || req->hasParam("hw3SmT4") ||
-                            req->hasParam("hw3SmO1") || req->hasParam("hw3SmO2") ||
-                            req->hasParam("hw3SmO3") || req->hasParam("hw3SmO4") ||
-                            req->hasParam("hw3SmO5");
-        if (smartTouched) {
-            uint8_t t1 = req->hasParam("hw3SmT1") ? (uint8_t)constrain(req->getParam("hw3SmT1")->value().toInt(), 20, 195) : cfg.hw3SmartT1;
-            uint8_t t2 = req->hasParam("hw3SmT2") ? (uint8_t)constrain(req->getParam("hw3SmT2")->value().toInt(), 20, 200) : cfg.hw3SmartT2;
-            uint8_t t3 = req->hasParam("hw3SmT3") ? (uint8_t)constrain(req->getParam("hw3SmT3")->value().toInt(), 20, 200) : cfg.hw3SmartT3;
-            uint8_t t4 = req->hasParam("hw3SmT4") ? (uint8_t)constrain(req->getParam("hw3SmT4")->value().toInt(), 20, 200) : cfg.hw3SmartT4;
-            if (t2 <= t1) t2 = t1 + 1;
-            if (t3 <= t2) t3 = t2 + 1;
-            if (t4 <= t3) t4 = t3 + 1;
-            uint8_t o1 = req->hasParam("hw3SmO1") ? (uint8_t)constrain(req->getParam("hw3SmO1")->value().toInt(), 0, 100) : cfg.hw3SmartO1;
-            uint8_t o2 = req->hasParam("hw3SmO2") ? (uint8_t)constrain(req->getParam("hw3SmO2")->value().toInt(), 0, 100) : cfg.hw3SmartO2;
-            uint8_t o3 = req->hasParam("hw3SmO3") ? (uint8_t)constrain(req->getParam("hw3SmO3")->value().toInt(), 0, 100) : cfg.hw3SmartO3;
-            uint8_t o4 = req->hasParam("hw3SmO4") ? (uint8_t)constrain(req->getParam("hw3SmO4")->value().toInt(), 0, 100) : cfg.hw3SmartO4;
-            uint8_t o5 = req->hasParam("hw3SmO5") ? (uint8_t)constrain(req->getParam("hw3SmO5")->value().toInt(), 0, 100) : cfg.hw3SmartO5;
-
-            portENTER_CRITICAL(&gHw3SmartMux);
-            bool smChanged =
-                (t1 != cfg.hw3SmartT1) || (t2 != cfg.hw3SmartT2) ||
-                (t3 != cfg.hw3SmartT3) || (t4 != cfg.hw3SmartT4) ||
-                (o1 != cfg.hw3SmartO1) || (o2 != cfg.hw3SmartO2) ||
-                (o3 != cfg.hw3SmartO3) || (o4 != cfg.hw3SmartO4) ||
-                (o5 != cfg.hw3SmartO5);
-            cfg.hw3SmartT1 = t1; cfg.hw3SmartT2 = t2;
-            cfg.hw3SmartT3 = t3; cfg.hw3SmartT4 = t4;
-            cfg.hw3SmartO1 = o1; cfg.hw3SmartO2 = o2; cfg.hw3SmartO3 = o3;
-            cfg.hw3SmartO4 = o4; cfg.hw3SmartO5 = o5;
-            portEXIT_CRITICAL(&gHw3SmartMux);
-            if (smChanged) changed = true;
+        if (req->hasParam("hw3AutoSpeed")) {
+            bool v = req->getParam("hw3AutoSpeed")->value().toInt() != 0;
+            if (v != cfg.hw3AutoSpeed) { cfg.hw3AutoSpeed = v; changed = true; }
         }
         // precond removed from UI — requires Vehicle CAN (X179 pin 9/10)
         if (req->hasParam("hw4Offset")) {
@@ -721,10 +641,6 @@ void setupWebServer() {
         if (req->hasParam("trackMode")) {
             bool v = req->getParam("trackMode")->value().toInt() != 0;
             if (v != cfg.trackModeEnable) { cfg.trackModeEnable = v; changed = true; }
-        }
-        if (req->hasParam("hw3HiPass")) {
-            bool v = req->getParam("hw3HiPass")->value().toInt() != 0;
-            if (v != cfg.hw3HighSpeedPassthrough) { cfg.hw3HighSpeedPassthrough = v; changed = true; }
         }
 
         if (changed) saveConfig();
@@ -755,6 +671,7 @@ void setupWebServer() {
         if (newPass.length() >= 8) wPrefs.putString(NV_AP_PASS, newPass);
         wPrefs.end();
         req->send(200, "text/plain", "OK");
+        saveRestartReason("/api/ap save");
         otaPendingRestart = true;
     });
 
@@ -763,7 +680,8 @@ void setupWebServer() {
     //   GET /api/scan/result → poll for completion; returns {"scanning":true} while
     //                          in progress, or the SSID array when done.
     // This keeps the async_service_task free during the ~1-2 s channel sweep.
-    server.on("/api/scan", HTTP_GET, [](AsyncWebServerRequest* req) {
+    // exact() required — default matcher would let /api/scan swallow /api/scan/result.
+    server.on(AsyncURIMatcher::exact("/api/scan"), HTTP_GET, [](AsyncWebServerRequest* req) {
         if (!checkToken(req)) { req->send(403, "text/plain", "UNAUTH"); return; }
         WiFi.scanDelete();
         WiFi.scanNetworks(/*async=*/true, /*hidden=*/false,
@@ -817,6 +735,7 @@ void setupWebServer() {
             wPrefs.putString(NV_STA_PASS, "");
             wPrefs.end();
             req->send(200, "text/plain", "OK");
+            saveRestartReason("/api/sta clear");
             otaPendingRestart = true;
             return;
         }
@@ -831,6 +750,7 @@ void setupWebServer() {
         wPrefs.putString(NV_STA_PASS, newPass);
         wPrefs.end();
         req->send(200, "text/plain", "OK");
+        saveRestartReason("/api/sta save");
         otaPendingRestart = true;
     });
 
@@ -846,8 +766,9 @@ void setupWebServer() {
         req->send(200, "text/plain", "OK");
     });
 
-    // Diagnostic log — stream all entries as plain text (GET) or clear (POST /api/log/clear)
-    server.on("/api/log", HTTP_GET, [](AsyncWebServerRequest* req) {
+    // Diagnostic log — stream all entries as plain text (GET) or clear (POST /api/log/clear).
+    // exact() required — default matcher would hijack /api/log/download (same HTTP method).
+    server.on(AsyncURIMatcher::exact("/api/log"), HTTP_GET, [](AsyncWebServerRequest* req) {
         if (!checkToken(req)) { req->send(403, "text/plain", "UNAUTH"); return; }
         AsyncResponseStream* resp = req->beginResponseStream("text/plain; charset=utf-8");
         uint16_t cnt = diagLogCount();
@@ -898,6 +819,7 @@ void setupWebServer() {
     server.on("/api/reboot", HTTP_GET, [](AsyncWebServerRequest* req) {
         if (!checkToken(req)) { req->send(403, "text/plain", "UNAUTH"); return; }
         req->send(200, "application/json", "{\"ok\":true}");
+        saveRestartReason("/api/reboot");
         otaPendingRestart = true;
     });
 
@@ -917,16 +839,24 @@ void setupWebServer() {
         sysPrefs.end();
         // Reload defaults into cfg and restart
         req->send(200, "application/json", "{\"ok\":true}");
+        saveRestartReason("/api/reset");
         otaPendingRestart = true;
     });
 
-    // OTA firmware upload — flag-based restart (no delay in async context)
-    server.on("/api/ota", HTTP_POST,
+    // OTA firmware upload — flag-based restart (no delay in async context).
+    // MUST use exact() matcher — otherwise ESPAsyncWebServer's default
+    // BackwardCompatible matching also catches /api/ota/check, /api/ota/pull
+    // etc., hijacks them, and reboots the device because Update.hasError()
+    // returns false when Update was never started.
+    server.on(AsyncURIMatcher::exact("/api/ota"), HTTP_POST,
         [](AsyncWebServerRequest* req) {
             if (!checkToken(req)) { req->send(403, "text/plain", "UNAUTH"); return; }
             bool ok = !Update.hasError();
             req->send(200, "text/plain", ok ? "OK" : "FAIL");
-            if (ok) otaPendingRestart = true;
+            if (ok) {
+                saveRestartReason("/api/ota upload");
+                otaPendingRestart = true;
+            }
         },
         [](AsyncWebServerRequest* req, const String& filename,
            size_t index, uint8_t* data, size_t len, bool final) {
@@ -1162,7 +1092,7 @@ void canTask(void* param) {
     uint32_t log_fsdModAt      = 0;   // modifiedCount when FSD last triggered
 
     for (;;) {
-        // Feed watchdog — if this task hangs, ESP32 resets after 5s
+        // Feed watchdog — 30s TWDT (see esp_task_wdt_init below)
         esp_task_wdt_reset();
 
         // ── Bus-Off auto-recovery ──────────────────────────────────
@@ -1372,8 +1302,8 @@ void setup() {
     // Boot log entry
     {
         char bootMsg[64];
-        snprintf(bootMsg, sizeof(bootMsg), "BOOT v%s HW%u fsd=%s",
-                 FIRMWARE_VERSION, (unsigned)cfg.hwMode,
+        snprintf(bootMsg, sizeof(bootMsg), "BOOT v" FIRMWARE_VERSION " HW%u fsd=%s b=" __TIME__,
+                 (unsigned)cfg.hwMode,
                  cfg.fsdEnable ? "ON" : "OFF");
         addDiagLog(0, bootMsg);
     }
@@ -1397,6 +1327,21 @@ void setup() {
         char msg[48];
         snprintf(msg, sizeof(msg), "reset: %s", why);
         addDiagLog(0, msg);
+
+        // Retrieve last-restart reason persisted to NVS (survives any reboot
+        // — sw/panic/wdt/brownout). Cleared after reading so next boot is clean.
+        Preferences diag;
+        if (diag.begin("diag", false)) {
+            String last = diag.getString("rr", "");
+            char rrMsg[80];
+            snprintf(rrMsg, sizeof(rrMsg), "prev: %s",
+                     last.length() ? last.c_str() : "(none)");
+            addDiagLog(0, rrMsg);
+            if (last.length()) diag.remove("rr");
+            diag.end();
+        } else {
+            addDiagLog(0, "prev: (nvs open failed)");
+        }
     }
 
     // Init CAN (skip in safe mode)
@@ -1526,6 +1471,7 @@ void loop() {
     // Handle OTA restart safely outside async context
     if (otaPendingRestart) {
         delay(1000);  // let response finish sending
+        flushLogsToSpiffs();  // persist the "restart: …" diag line before reboot
         ESP.restart();
     }
 

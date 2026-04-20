@@ -20,10 +20,31 @@
 
 extern FSDConfig cfg;  // defined in handlers.h
 
-// File-scope mutex guarding coherent snapshots of the HW3 smart tier/offset
-// table. canTask reads all 9 fields under this mux; /api/set writers take it
-// so a mid-update can't produce a mixed read (e.g. T2<T1 transient).
-static portMUX_TYPE gHw3SmartMux = portMUX_INITIALIZER_UNLOCKED;
+// ── HW3 auto speed policy (mirrors tesla-open-can-mod hw3_speed_policy.h) ──
+// Field-calibrated request floors for metric clusters. The Tesla UI
+// under-delivers relative to the injected request, so we bias upward to
+// land near visible 60/80 km/h targets.
+//   <60 kph limit           → request 64 (visible ~50)
+//   =60 kph limit           → request 100 (visible ~80, high-speed ramp)
+//   60<x<80 kph limit       → request 85 (visible ~70)
+//   ≥80 kph limit           → pass Tesla's stock EAP offset through unchanged
+static constexpr int kHw3AutoTargetBelow60Kph         = 64;
+static constexpr int kHw3AutoTargetForVisible80Kph    = 85;
+static constexpr int kHw3StockOffsetCutoverKph        = 80;
+static constexpr int kHw3SpeedOffsetRawPerKph         = 5;   // wire encoding: canVal = offsetKph × 5
+static constexpr int kHw3SpeedOffsetMaxKph            = 40;  // wire raw cap = 200
+
+static inline int computeHW3MinimumTargetSpeedKph(int fusedLimitKph) {
+    if (fusedLimitKph == 60)                      return 100;
+    if (fusedLimitKph < kHw3AutoTargetBelow60Kph) return kHw3AutoTargetBelow60Kph;
+    if (fusedLimitKph < kHw3StockOffsetCutoverKph) return kHw3AutoTargetForVisible80Kph;
+    return fusedLimitKph;
+}
+
+static inline uint8_t encodeHW3OffsetRawFromKph(int offsetKph) {
+    int clamped = std::max(0, std::min(offsetKph, kHw3SpeedOffsetMaxKph));
+    return (uint8_t)(clamped * kHw3SpeedOffsetRawPerKph);
+}
 
 // ── CAN ID filter tables (used by handleMessage) ──────────────────────────
 static constexpr uint32_t LEGACY_IDS[] = {69, 1006, 1080};
@@ -84,7 +105,7 @@ static void handleLegacy(CanFrame& frame, CanDriver& driver) {
             if (driver.send(frame)) cfg.modifiedCount++;
             else                    cfg.errorCount++;
         }
-        if (index == 1) {
+        if (index == 1 && cfg.fsdTriggered && cfg.fsdEnable) {
             setBit(frame, 19, false);
             setBit(frame, 48, false);  // UI_enableVisionSpeedControl = off
             driver.send(frame);  // nag suppression only, not counted as FSD modification
@@ -116,97 +137,53 @@ static void handleHW3(CanFrame& frame, CanDriver& driver) {
         return;
     }
     // 0x3FD (1021) — FSD activation frame (mux 0/1/2)
+    // Mirrors tesla-open-can-mod: mux-0 captures the stock EAP offset from
+    // byte 3, mux-2 writes the active offset back (passthrough above 80 kph
+    // fused limit, calibrated floor below).
     if (frame.id == 1021) {
         if (frame.dlc < 8) return;
         auto index = readMuxID(frame);
         if (index == 0) cfg.fsdTriggered = cfg.forceActivate || isFSDSelectedInUI(frame);
         if (index == 0 && cfg.fsdTriggered && cfg.fsdEnable) {
-            // mux-0 byte 3 bits 1-6: Tesla's own offset preference.
-            // Interpret as percentage (0-100) for consistency with smart/manual pipelines.
+            // byte 3 bits 1-6 hold Tesla's own stock offset preference encoded
+            // as (kph + 30) / 5? No — opendbc says it's offset_kph-ish; here we
+            // follow tesla-open-can-mod verbatim: ((d3>>1)&0x3F - 30)*5 clamped [0,100].
             cfg.hw3SpeedOffset = std::max(std::min(((int)((frame.data[3] >> 1) & 0x3F) - 30) * 5, 100), 0);
             setBit(frame, 46, true);
             setSpeedProfileV12V13(frame, cfg.speedProfile);
             if (driver.send(frame)) cfg.modifiedCount++;
             else                    cfg.errorCount++;
         }
-        if (index == 1) {
+        if (index == 1 && cfg.fsdTriggered && cfg.fsdEnable) {
             setBit(frame, 19, false);
             setBit(frame, 49, false);  // UI_enableVisionSpeedControl = off
             driver.send(frame);  // nag suppression only, not counted as FSD modification
         }
         if (index == 2 && cfg.fsdTriggered && cfg.fsdEnable) {
-            // Override policy:
-            //   passthrough (limKph ≥ 80 & flag) → keep factory EAP offset untouched
-            //   smart on                         → compute pct from tier rules
-            //   manual set (>=0)                 → use cfg.hw3OffsetManual
-            //   auto (smart off, -1)             → pass Tesla's own mux-2 bytes through unchanged
-            // Wire encoding: canVal = offsetKph × 5 (car reads canVal / 5 as kph;
-            // hardware max raw=200 → 40 kph). Prior code used pct×4 which the car
-            // misread as 0.8×pct kph — under-delivering at high limits and
-            // over-delivering at low limits.
-            int pct = -1;
-            uint8_t fl = (cfg.fusedSpeedLimit > 0 && cfg.fusedSpeedLimit < 31) ? cfg.fusedSpeedLimit : 0;
-            uint8_t vl = (cfg.visionSpeedLimit > 0 && cfg.visionSpeedLimit < 31) ? cfg.visionSpeedLimit : 0;
-            uint8_t limRaw = fl > 0 ? fl : vl;
-            int limKph = limRaw * 5;
+            // Start from stock offset raw (what Tesla would send — hw3SpeedOffset
+            // stored as pct*5 in the [0,100] range, matching open-can-mod).
+            uint8_t activeRaw = (uint8_t)std::max(std::min((int)cfg.hw3SpeedOffset, 255), 0);
 
-            // ≥80 km/h limits are Tesla's native EAP domain — the factory offset
-            // (+5/+10/... via stalk) already works well. Let mux-2 pass through
-            // so our override doesn't fight EAP. Controlled by hw3HighSpeedPassthrough.
-            bool highSpeedPassthrough = (limKph >= 80 && cfg.hw3HighSpeedPassthrough);
-
-            if (!highSpeedPassthrough) {
-                if (cfg.hw3SmartEnable) {
-                    if (limKph > 0) {
-                        // Snapshot tier thresholds + offsets under critical section so
-                        // /api/set can't mid-update any individual field and make
-                        // limKph straddle an inconsistent boundary (T2 < T1, etc.).
-                        uint8_t sT1, sT2, sT3, sT4, sO1, sO2, sO3, sO4, sO5;
-                        portENTER_CRITICAL(&gHw3SmartMux);
-                        sT1 = cfg.hw3SmartT1; sT2 = cfg.hw3SmartT2;
-                        sT3 = cfg.hw3SmartT3; sT4 = cfg.hw3SmartT4;
-                        sO1 = cfg.hw3SmartO1; sO2 = cfg.hw3SmartO2; sO3 = cfg.hw3SmartO3;
-                        sO4 = cfg.hw3SmartO4; sO5 = cfg.hw3SmartO5;
-                        portEXIT_CRITICAL(&gHw3SmartMux);
-                        uint8_t tier;
-                        if      (limKph <= sT1) tier = 1;
-                        else if (limKph <= sT2) tier = 2;
-                        else if (limKph <= sT3) tier = 3;
-                        else if (limKph <= sT4) tier = 4;
-                        else                     tier = 5;
-                        pct = (tier==1)?sO1:(tier==2)?sO2:(tier==3)?sO3:(tier==4)?sO4:sO5;
-                        cfg.hw3SmartActiveTier = tier;
-                        cfg.hw3SmartLastPct    = (uint8_t)std::min(pct, 50);
-                    } else {
-                        // Speed limit unknown — hold last valid percentage, do not drop to zero
-                        pct = cfg.hw3SmartLastPct;
+            if (cfg.hw3AutoSpeed) {
+                uint8_t fl = (cfg.fusedSpeedLimit > 0 && cfg.fusedSpeedLimit < 31) ? cfg.fusedSpeedLimit : 0;
+                if (fl > 0) {
+                    int fusedLimitKph   = (int)fl * 5;
+                    int targetSpeedKph  = computeHW3MinimumTargetSpeedKph(fusedLimitKph);
+                    int desiredOffsetKph = std::max(targetSpeedKph - fusedLimitKph, 0);
+                    uint8_t floorRaw = encodeHW3OffsetRawFromKph(desiredOffsetKph);
+                    // Below 80 kph: deterministic auto target overrides stock.
+                    // At/above 80 kph: keep stock (factory EAP ladder is already good).
+                    if (fusedLimitKph < kHw3StockOffsetCutoverKph) {
+                        activeRaw = floorRaw;
                     }
-                } else {
-                    cfg.hw3SmartActiveTier = 0;
-                    if (cfg.hw3OffsetManual >= 0) pct = cfg.hw3OffsetManual;
-                    // else: pct stays -1 → passthrough (no mux-2 override)
                 }
-            } else {
-                cfg.hw3SmartActiveTier = 0;  // passthrough active — no tier displayed
+                // If fused limit unknown (fl==0), pass stock through unchanged.
             }
-            if (pct >= 0) {
-                pct = std::max(std::min(pct, 50), 0);     // UI cap
-                int offsetKph;
-                if (limKph > 0) {
-                    offsetKph = (limKph * pct + 50) / 100;          // pct % of limit, round
-                    int headroom = std::max(0, 140 - limKph);        // base+offset ≤ 140
-                    offsetKph = std::min(offsetKph, headroom);
-                } else {
-                    // No speed limit known — scale pct against wire cap (40 kph)
-                    offsetKph = (pct * 40 + 50) / 100;
-                }
-                offsetKph = std::min(offsetKph, 40);                  // wire max 40 kph
-                int canVal = offsetKph * 5;                           // wire raw = kph × 5
-                frame.data[0] &= ~(0b11000000);
-                frame.data[1] &= ~(0b00111111);
-                frame.data[0] |= (canVal & 0x03) << 6;
-                frame.data[1] |= (canVal >> 2);
-            }
+
+            frame.data[0] &= ~(0b11000000);
+            frame.data[1] &= ~(0b00111111);
+            frame.data[0] |= (activeRaw & 0x03) << 6;
+            frame.data[1] |= (activeRaw >> 2);
             if (driver.send(frame)) cfg.modifiedCount++;
             else                    cfg.errorCount++;
         }
@@ -260,7 +237,7 @@ static void handleHW4(CanFrame& frame, CanDriver& driver) {
             if (driver.send(frame)) cfg.modifiedCount++;
             else                    cfg.errorCount++;
         }
-        if (index == 1) {
+        if (index == 1 && cfg.fsdTriggered && cfg.fsdEnable) {
             // bit19=false: nag suppression (same as HW3)
             // bit47=true:  HW4-specific FSD ready signal; counted as modification (unlike HW3 nag-only)
             // bit49=false: UI_enableVisionSpeedControl = off
@@ -270,7 +247,7 @@ static void handleHW4(CanFrame& frame, CanDriver& driver) {
             if (driver.send(frame)) cfg.modifiedCount++;
             else                    cfg.errorCount++;
         }
-        if (index == 2) {
+        if (index == 2 && cfg.fsdTriggered && cfg.fsdEnable) {
             frame.data[7] &= ~(0x07 << 4);
             frame.data[7] |= (cfg.speedProfile & 0x07) << 4;
             if (cfg.hw4OffsetRaw > 0)

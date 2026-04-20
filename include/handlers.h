@@ -80,8 +80,10 @@ static void handleMessage(CanFrame& frame, CanDriver& driver) {
     if (frame.id == 923) { handleDASStatus(frame);            return; }  // 0x39B DAS_status
     if (frame.id == 905) { handleDASStatus2(frame);           return; }  // 0x389 DAS_status2
     if (frame.id == 585) { handleSCCMStalk(frame, driver);    return; }  // 0x249 SCCM_leftStalk
-    // 0x399 (921) DAS_status_ISA — ISA chime only, NOT a speed limit source.
-    // Speed limits come exclusively from 0x39B (923) via handleDASStatus above.
+    // 0x399 (921) DAS_status_ISA — dual-source fused speed limit reader.
+    // NOTE: do NOT return here — the HW4 FSD injection handler below also
+    // processes 921 for ISA chime suppression. Falls through to isFilteredId().
+    if (frame.id == 921) handleDASStatusISA(frame);
 
     // FSD injection — route to hardware-specific handler
     if (!isFilteredId(frame.id)) return;

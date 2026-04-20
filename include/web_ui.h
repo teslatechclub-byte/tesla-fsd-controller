@@ -213,23 +213,6 @@ select:focus{outline:none;border-color:#38bdf8}
     <span class="row-label" id="iLblAPRestart">AP 自动恢复</span>
     <label class="toggle"><input type="checkbox" id="apRestart" onchange="setAPRestart(this.checked)"><span class="slider"></span></label>
   </div>
-  <div class="row" id="rowHW3Offset" style="display:none">
-    <span class="row-label" id="iLblHW3Off">速度偏移 %（HW3）</span>
-    <select id="hw3Offset" onchange="setVal('hw3Offset',this.value)">
-      <option value="-1" data-zh="自动" data-en="Auto">自动</option>
-      <option value="0" data-zh="+0%" data-en="+0%">+0%</option>
-      <option value="5" data-zh="+5%" data-en="+5%">+5%</option>
-      <option value="10" data-zh="+10%" data-en="+10%">+10%</option>
-      <option value="15" data-zh="+15%" data-en="+15%">+15%</option>
-      <option value="20" data-zh="+20%" data-en="+20%">+20%</option>
-      <option value="25" data-zh="+25%" data-en="+25%">+25%</option>
-      <option value="30" data-zh="+30%" data-en="+30%">+30%</option>
-      <option value="35" data-zh="+35%" data-en="+35%">+35%</option>
-      <option value="40" data-zh="+40%" data-en="+40%">+40%</option>
-      <option value="45" data-zh="+45%" data-en="+45%">+45%</option>
-      <option value="50" data-zh="+50%" data-en="+50%">+50%</option>
-    </select>
-  </div>
   <div class="row" id="rowHW4Offset" style="display:none">
     <span class="row-label" id="iLblHW4Off" data-zh="速度偏移 km/h（HW4）" data-en="HW4 Speed Offset (km/h)">速度偏移 km/h（HW4）</span>
     <select id="hw4Offset" onchange="setVal('hw4Offset',this.value)">
@@ -244,54 +227,9 @@ select:focus{outline:none;border-color:#38bdf8}
     <span class="row-label" id="iLblTrackMode">赛道模式（实验性）</span>
     <label class="toggle"><input type="checkbox" id="trackMode" onchange="onTrackModeChange(this)"><span class="slider"></span></label>
   </div>
-  <div class="row" id="rowHW3Smart" style="display:none">
-    <span class="row-label" id="iLblHW3Smart">智能速度偏移</span>
-    <label class="toggle"><input type="checkbox" id="hw3Smart" onchange="setHW3Smart(this.checked)"><span class="slider"></span></label>
-  </div>
-  <div class="row" id="rowHW3HiPass" style="display:none">
-    <span class="row-label" id="iLblHW3HiPass">≥80 km/h 让原车（HW3）</span>
-    <label class="toggle"><input type="checkbox" id="hw3HiPass" onchange="setVal('hw3HiPass',this.checked?1:0)"><span class="slider"></span></label>
-  </div>
-  <div id="rowHW3SmartRules" style="display:none">
-    <div class="smart-rules">
-      <div class="smart-rule">
-        <span>限速 &lt; </span>
-        <input type="number" id="hw3SmT1" min="20" max="195" value="40" style="width:50px" oninput="markSmartDirty();updateSmartLabels()">
-        <span> kph &rarr; +</span>
-        <input type="number" id="hw3SmO1" min="0" max="50" value="50" style="width:44px" oninput="markSmartDirty()">
-        <span class="km">%</span>
-      </div>
-      <div class="smart-rule">
-        <span><span id="sSmLbl2">40</span> ~ </span>
-        <input type="number" id="hw3SmT2" min="20" max="200" value="60" style="width:50px" oninput="markSmartDirty();updateSmartLabels()">
-        <span> kph &rarr; +</span>
-        <input type="number" id="hw3SmO2" min="0" max="50" value="25" style="width:44px" oninput="markSmartDirty()">
-        <span class="km">%</span>
-      </div>
-      <div class="smart-rule">
-        <span><span id="sSmLbl3">60</span> ~ </span>
-        <input type="number" id="hw3SmT3" min="20" max="200" value="80" style="width:50px" oninput="markSmartDirty();updateSmartLabels()">
-        <span> kph &rarr; +</span>
-        <input type="number" id="hw3SmO3" min="0" max="50" value="15" style="width:44px" oninput="markSmartDirty()">
-        <span class="km">%</span>
-      </div>
-      <div class="smart-rule">
-        <span><span id="sSmLbl4">80</span> ~ </span>
-        <input type="number" id="hw3SmT4" min="20" max="200" value="100" style="width:50px" oninput="markSmartDirty();updateSmartLabels()">
-        <span> kph &rarr; +</span>
-        <input type="number" id="hw3SmO4" min="0" max="50" value="10" style="width:44px" oninput="markSmartDirty()">
-        <span class="km">%</span>
-      </div>
-      <div class="smart-rule">
-        <span>&ge; <span id="sSmLbl5">100</span> kph &rarr; +</span>
-        <input type="number" id="hw3SmO5" min="0" max="50" value="8" style="width:44px" oninput="markSmartDirty()">
-        <span class="km">%</span>
-      </div>
-      <div class="smart-rule" style="justify-content:flex-end;border-bottom:none;padding-top:10px;gap:8px">
-        <button onclick="resetSmartRules()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer" id="iSmResetBtn">恢复默认</button>
-        <button onclick="saveSmartRules()" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;cursor:pointer" id="iSmSaveBtn">保存</button>
-      </div>
-    </div>
+  <div class="row" id="rowHW3Auto" style="display:none">
+    <span class="row-label" id="iLblHW3Auto">HW3 自动限速突破</span>
+    <label class="toggle"><input type="checkbox" id="hw3AutoSpeed" onchange="setVal('hw3AutoSpeed',this.checked?1:0)"><span class="slider"></span></label>
   </div>
 </div>
 
@@ -336,7 +274,7 @@ select:focus{outline:none;border-color:#38bdf8}
   </div>
   <button class="save-btn" id="wifiSaveBtn" onclick="doWifi()">保存并重启</button>
   <div class="msg" id="wifiMsg"></div>
-  <div id="staSection" style="margin-top:18px;padding-top:18px;border-top:1px solid #1e293b">
+  <div id="staSection" style="display:none;margin-top:18px;padding-top:18px;border-top:1px solid #1e293b">
     <div style="font-size:12px;font-weight:700;color:#64748b;letter-spacing:2px;margin-bottom:12px" id="iLblStaSection">连接路由器（内网访问）</div>
     <div style="color:#64748b;font-size:12px;margin-bottom:10px" id="iLblStaDesc">填写后模块将同时连接路由器，可通过内网 IP 访问，热点仍保留。留空则只用热点。</div>
     <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px;margin-bottom:8px">
@@ -519,8 +457,7 @@ var T={
     uptH:'时',uptM:'分',uptS:'秒',langBtn:'EN',
     hwHint:'HW4 硬件 + 固件 2026.8.x 或更旧（FSD V13）→ 请选 HW3',
     cardWifi:'WiFi 设置',lblSSID:'热点名称（SSID）',lblPass:'新密码（留空保持不变）',
-    lblHW3Off:'速度偏移 km/h（HW3）',lblHW3Smart:'智能速度偏移',
-    smR1L:'限速 <',smR2L:'限速 T1 ~',smR3L:'限速 ≥ T2 → +',lblBMS:'电池',
+    lblHW3Auto:'HW3 自动限速突破',lblBMS:'电池',
     wifiSave:'保存并重启',wifiOK:'已保存，正在重启...',wifiFail:'保存失败: ',
     wifiPassErr:'密码至少 8 位',wifiSSIDErr:'SSID 不能为空',
     lblLanIP:'内网 IP',lblMdns:'本地域名',
@@ -545,8 +482,7 @@ var T={
   en:{title:'Tesla Controller',cardCtrl:'CONTROL',cardStat:'STATUS',cardOTA:'OTA UPDATE',
     lblFsdEn:'FSD Enable',lblHW:'Hardware',lblSpeed:'Speed Profile',lblPMode:'Profile Source',
     lblISA:'ISA Chime Suppress',lblEmg:'Emergency Detection',lblCN:'Force Activate',
-    lblHW3Off:'HW3 Speed Offset (km/h)',lblHW3Smart:'Smart Speed Offset',
-    smR1L:'Limit <',smR2L:'Limit T1 ~',smR3L:'Limit ≥ T2 → +',lblBMS:'Battery',
+    lblHW3Auto:'HW3 Auto Speed Boost',lblBMS:'Battery',
     lblMod:'MODIFIED',lblRX:'RECEIVED',lblErr:'ERRORS',lblUp:'UPTIME',
     lblCAN:'CAN Bus',lblFSDTrig:'FSD Triggered',
     lblFile:'Choose File',noFile:'No file chosen',uploadBtn:'Upload Firmware',
@@ -594,11 +530,7 @@ function applyLang(){
   document.getElementById('iLblISA').textContent=t.lblISA;
   document.getElementById('iLblEmg').textContent=t.lblEmg;
   document.getElementById('iLblCN').textContent=t.lblCN;
-  document.getElementById('iLblHW3Off').textContent=t.lblHW3Off;
-  document.getElementById('iLblHW3Smart').textContent=t.lblHW3Smart;
-  document.getElementById('iSmR1L').textContent=t.smR1L;
-  document.getElementById('iSmR2L').textContent=t.smR2L;
-  document.getElementById('iSmR3L').textContent=t.smR3L;
+  var hw3AutoLbl=document.getElementById('iLblHW3Auto');if(hw3AutoLbl&&t.lblHW3Auto)hw3AutoLbl.textContent=t.lblHW3Auto;
   document.getElementById('iLblBMS').textContent=t.lblBMS;
   document.getElementById('iLblMod').textContent=t.lblMod;
   document.getElementById('iLblRX').textContent=t.lblRX;
@@ -699,8 +631,6 @@ function poll(){
     document.getElementById('forceActivate').checked=!!d.forceActivate;
     document.getElementById('overrideSL').checked=!!d.overrideSL;
     document.getElementById('rowOverrideSL').style.display=(d.hwMode===0)?'':'none';
-    var hw3OffEl=document.getElementById('hw3Offset');
-    if(hw3OffEl)hw3OffEl.value=String(d.hw3Offset!=null?d.hw3Offset:-1);
     if(d.tempSeen){
       document.getElementById('rowTemp').style.display='';
       var tIn=(d.tempInRaw*0.25).toFixed(1)+'°C';
@@ -737,36 +667,18 @@ function poll(){
     else{lanRow.style.display='none';}
     if(d.version)document.getElementById('sVer').textContent=(d.variant?d.variant+' ':'')+'v'+d.version;
     // AP auto-restart
-    var smartEl=document.getElementById('hw3Smart');
-    if(smartEl){
-      smartEl.checked=!!d.hw3Smart;
-      // Sync smart rule inputs whenever user isn't actively editing — keeps phone/car UI in sync
-      if(!smartDirty){
-        if(d.hw3SmT1!=null)document.getElementById('hw3SmT1').value=d.hw3SmT1;
-        if(d.hw3SmT2!=null)document.getElementById('hw3SmT2').value=d.hw3SmT2;
-        if(d.hw3SmT3!=null)document.getElementById('hw3SmT3').value=d.hw3SmT3;
-        if(d.hw3SmT4!=null)document.getElementById('hw3SmT4').value=d.hw3SmT4;
-        if(d.hw3SmO1!=null)document.getElementById('hw3SmO1').value=d.hw3SmO1;
-        if(d.hw3SmO2!=null)document.getElementById('hw3SmO2').value=d.hw3SmO2;
-        if(d.hw3SmO3!=null)document.getElementById('hw3SmO3').value=d.hw3SmO3;
-        if(d.hw3SmO4!=null)document.getElementById('hw3SmO4').value=d.hw3SmO4;
-        if(d.hw3SmO5!=null)document.getElementById('hw3SmO5').value=d.hw3SmO5;
-        updateSmartLabels();
-      }
-      var smartActive=(d.hwMode===1&&!!d.hw3Smart);
-      document.getElementById('rowHW3Offset').style.display=(d.hwMode===1&&!smartActive)?'':'none';
-      document.getElementById('rowHW3SmartRules').style.display=smartActive?'':'none';
+    var autoEl=document.getElementById('hw3AutoSpeed');
+    if(autoEl){
+      autoEl.checked=(d.hw3AutoSpeed==null?true:!!d.hw3AutoSpeed);
+      document.getElementById('rowHW3Auto').style.display=(d.hwMode===1)?'':'none';
       document.getElementById('rowHW4Offset').style.display=(d.hwMode===2)?'':'none';
       document.getElementById('rowTrackMode').style.display=(d.hwMode===1)?'':'none';
-      document.getElementById('rowHW3HiPass').style.display=(d.hwMode===1)?'':'none';
     }
     document.getElementById('apRestart').checked=!!d.apRestart;
     var hw4OffEl=document.getElementById('hw4Offset');
     if(hw4OffEl)hw4OffEl.value=String(d.hw4Offset!=null?d.hw4Offset:0);
     var trackModeEl=document.getElementById('trackMode');
     if(trackModeEl)trackModeEl.checked=!!d.trackMode;
-    var hiPassEl=document.getElementById('hw3HiPass');
-    if(hiPassEl)hiPassEl.checked=(d.hw3HiPass==null?true:!!d.hw3HiPass);
 
     var tsEl=document.getElementById('sTimeSync');
     if(d.timeSynced){tsEl.textContent=T[lang].timeSyncOK;tsEl.className='status-ok';}
@@ -799,16 +711,7 @@ function poll(){
     lFsdEl.textContent=lFsdActive?t.fsdYes:t.fsdNo;
     lFsdEl.className=lFsdActive?'status-ok':'status-no';
     var tierRow=document.getElementById('rowLiveTier');
-    if(d.hwMode===1&&d.hw3Smart&&d.smartTier>0){
-      tierRow.style.display='';
-      var tierLabels=['',' < '+d.hw3SmT1,d.hw3SmT1+'~'+d.hw3SmT2,d.hw3SmT2+'~'+d.hw3SmT3,d.hw3SmT3+'~'+d.hw3SmT4,' ≥ '+d.hw3SmT4];
-      var tl=tierLabels[d.smartTier]||('T'+d.smartTier);
-      var _sLim=d.fusedLimit>0?d.fusedLimit*5:(d.visionLimit>0?d.visionLimit*5:0);
-      var smartKmh=(_sLim>0&&d.smartPct!=null)?Math.round(_sLim*d.smartPct/100):0;
-      document.getElementById('liveTier').textContent=tl+' kph  +'+d.smartPct+'%  (+'+smartKmh+' km/h)';
-    } else {
-      tierRow.style.display='none';
-    }
+    if(tierRow)tierRow.style.display='none';
     var liveTempRow=document.getElementById('rowLiveTemp');
     if(d.tempSeen){
       liveTempRow.style.display='';
@@ -817,13 +720,12 @@ function poll(){
       liveTempRow.style.display='none';
     }
     var spdLimKph=d.fusedLimit>0?d.fusedLimit*5:(d.visionLimit>0?d.visionLimit*5:0);
-    // Prefer manual hw3Offset; fall back to live hw3AutoOffset (matches car UI)
-    var hw3Pct=(d.hw3Offset>=0)?d.hw3Offset:(d.hw3AutoOffset>=0?d.hw3AutoOffset:-1);
+    // HW3 offset: shows stock pct (hw3AutoOffset) as km/h estimate; auto mode
+    // below 80 kph snaps to calibrated floor (64/85/100 targets).
+    var hw3Pct=(d.hw3AutoOffset>=0)?d.hw3AutoOffset:-1;
     var offKmh=(hw3Pct>=0&&spdLimKph>0)?Math.round(spdLimKph*hw3Pct/100):null;
-    var smartKmh=(d.smartPct>0&&spdLimKph>0)?Math.round(spdLimKph*d.smartPct/100):0;
     var hw4OffKmh={0:0,7:5,10:7,14:10,21:15}[d.hw4Offset]||0;
-    // HW3 auto mode (smart off, manual=-1): passthrough Tesla's mux-2 bytes, we do not override.
-    var offVal=d.hwMode===1?(d.hw3Smart?smartKmh:(offKmh!=null?offKmh:null)):
+    var offVal=d.hwMode===1?(offKmh!=null?offKmh:null):
                (d.hwMode===2&&hw4OffKmh>0?hw4OffKmh:null);
     document.getElementById('liveOffset').textContent=offVal!=null?'+'+offVal:'--';
     // ── GTW_autopilot type ────────────────────────────────────────────────
@@ -892,12 +794,14 @@ function startApp(){
 var brDirty=false;  // true while user editing DNS lists → skip overwrite
 var brPollTimer=null;
 function brInit(){
+  // staSection (连接路由器) is default-hidden: only baseline variants (no bridge
+  // endpoint) should expose it. On _wifi variants the bridge owns the STA radio
+  // so staSection would just collect ignored credentials and confuse users.
+  var staSec=document.getElementById('staSection');
+  function showStaSection(){ if(staSec)staSec.style.display=''; }
   fetch('/api/wifi-bridge/status'+(token?'?token='+token:'')).then(function(r){
-    if(!r.ok)return;
+    if(!r.ok){showStaSection();return;}
     document.getElementById('cardBridge').style.display='';
-    // Bridge supersedes the old single-SSID STA field; hide it to avoid two-config confusion
-    var staSec=document.getElementById('staSection');
-    if(staSec)staSec.style.display='none';
     brPoll();
     brPollTimer=setInterval(brPoll,3000);
     // mark dirty on any edit so polling doesn't overwrite user input
@@ -905,7 +809,7 @@ function brInit(){
       var el=document.getElementById(id);
       if(el)el.addEventListener('input',function(){brDirty=true;});
     });
-  }).catch(function(){});
+  }).catch(function(){showStaSection();});
 }
 function brPoll(){
   fetch('/api/wifi-bridge/status'+(token?'?token='+token:'')).then(function(r){return r.ok?r.json():null;}).then(function(d){
@@ -1107,13 +1011,8 @@ function updateSpeedOptions(hwMode){
   if(!isHW4&&parseInt(sel.value)>2){sel.value='2';setVal('speedProfile',2);}
   // Show HW3 rows only for HW3 mode
   var isHW3=(hwMode===1);
-  document.getElementById('rowHW3Smart').style.display=isHW3?'':'none';
+  document.getElementById('rowHW3Auto').style.display=isHW3?'':'none';
   document.getElementById('rowTrackMode').style.display=isHW3?'':'none';
-  document.getElementById('rowHW3HiPass').style.display=isHW3?'':'none';
-  var smartOn=isHW3&&document.getElementById('hw3Smart').checked;
-  // 智能开启时隐藏手动偏移下拉，避免用户误以为手动值在生效
-  document.getElementById('rowHW3Offset').style.display=(isHW3&&!smartOn)?'':'none';
-  document.getElementById('rowHW3SmartRules').style.display=smartOn?'':'none';
   // HW4-only rows — hide and reset on other modes
   document.getElementById('rowHW4Offset').style.display=isHW4?'':'none';
   document.getElementById('rowEmgDet').style.display=isHW4?'':'none';
@@ -1156,75 +1055,6 @@ function onTrackModeChange(el){
     if(!confirm(T[lang].trackModeWarn)){el.checked=false;return;}
   }
   setVal('trackMode',el.checked?1:0);
-}
-function setHW3Smart(enabled){
-  setVal('hw3Smart',enabled?1:0);
-  document.getElementById('rowHW3Offset').style.display=enabled?'none':'';
-  document.getElementById('rowHW3SmartRules').style.display=enabled?'':'none';
-}
-var smartDirty=false;
-function markSmartDirty(){ smartDirty=true; }
-function updateSmartLabels(){
-  var t1=parseInt(document.getElementById('hw3SmT1').value)||40;
-  var t2=parseInt(document.getElementById('hw3SmT2').value)||60;
-  var t3=parseInt(document.getElementById('hw3SmT3').value)||80;
-  var t4=parseInt(document.getElementById('hw3SmT4').value)||100;
-  document.getElementById('sSmLbl2').textContent=t1;
-  document.getElementById('sSmLbl3').textContent=t2;
-  document.getElementById('sSmLbl4').textContent=t3;
-  document.getElementById('sSmLbl5').textContent=t4;
-}
-function saveSmartRules(){
-  if(!agreed)return;
-  var t1=parseInt(document.getElementById('hw3SmT1').value)||40;
-  var t2=parseInt(document.getElementById('hw3SmT2').value)||60;
-  var t3=parseInt(document.getElementById('hw3SmT3').value)||80;
-  var t4=parseInt(document.getElementById('hw3SmT4').value)||100;
-  var o1=parseInt(document.getElementById('hw3SmO1').value);if(isNaN(o1))o1=50;
-  var o2=parseInt(document.getElementById('hw3SmO2').value);if(isNaN(o2))o2=25;
-  var o3=parseInt(document.getElementById('hw3SmO3').value);if(isNaN(o3))o3=15;
-  var o4=parseInt(document.getElementById('hw3SmO4').value);if(isNaN(o4))o4=10;
-  var o5=parseInt(document.getElementById('hw3SmO5').value);if(isNaN(o5))o5=8;
-  // Clamp: T1<T2<T3<T4, offsets 0-50 (matches backend + car UI)
-  t1=Math.max(20,Math.min(t1,195));
-  t2=Math.max(t1+1,Math.min(t2,200));
-  t3=Math.max(t2+1,Math.min(t3,200));
-  t4=Math.max(t3+1,Math.min(t4,200));
-  o1=Math.max(0,Math.min(o1,50));o2=Math.max(0,Math.min(o2,50));o3=Math.max(0,Math.min(o3,50));
-  o4=Math.max(0,Math.min(o4,50));o5=Math.max(0,Math.min(o5,50));
-  // Update inputs after clamping
-  document.getElementById('hw3SmT1').value=t1;document.getElementById('hw3SmT2').value=t2;
-  document.getElementById('hw3SmT3').value=t3;document.getElementById('hw3SmT4').value=t4;
-  updateSmartLabels();
-  var url='/api/set?hw3SmT1='+t1+'&hw3SmT2='+t2+'&hw3SmT3='+t3+'&hw3SmT4='+t4
-        +'&hw3SmO1='+o1+'&hw3SmO2='+o2+'&hw3SmO3='+o3+'&hw3SmO4='+o4+'&hw3SmO5='+o5+(token?'&token='+token:'');
-  var btn=document.getElementById('iSmSaveBtn');
-  fetch(url).then(function(r){
-    if(r.status===403){token='';try{sessionStorage.removeItem('fsd_tok');}catch(e){}showPinStep();}
-    else if(r.ok){smartDirty=false; if(btn){btn.textContent='✓';setTimeout(function(){btn.textContent='保存';},1500);}}
-    else {
-      // Backend rejected (e.g. 400 validation) — clear dirty so poll can re-sync, flag to user.
-      smartDirty=false;
-      if(btn){btn.textContent='✗';setTimeout(function(){btn.textContent='保存';},1500);}
-    }
-  }).catch(function(){
-    // Network error — clear dirty so poll re-syncs; user can retry.
-    smartDirty=false;
-    if(btn){btn.textContent='✗';setTimeout(function(){btn.textContent='保存';},1500);}
-  });
-}
-function resetSmartRules(){
-  if(!agreed)return;
-  document.getElementById('hw3SmT1').value=40;
-  document.getElementById('hw3SmT2').value=60;
-  document.getElementById('hw3SmT3').value=80;
-  document.getElementById('hw3SmT4').value=100;
-  document.getElementById('hw3SmO1').value=50;
-  document.getElementById('hw3SmO2').value=25;
-  document.getElementById('hw3SmO3').value=15;
-  document.getElementById('hw3SmO4').value=10;
-  document.getElementById('hw3SmO5').value=8;
-  saveSmartRules();
 }
 function doWifi(){
   var t=T[lang];

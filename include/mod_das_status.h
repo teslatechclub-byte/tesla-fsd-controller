@@ -20,6 +20,7 @@
 
 #include "can_frame_types.h"
 #include "fsd_config.h"
+#include "mod_log.h"
 
 extern FSDConfig cfg;
 
@@ -33,6 +34,40 @@ inline void handleDASStatus(const CanFrame& frame) {
     cfg.laneDeptWarning  = (frame.data[4] >> 5) & 0x07;                               // bit37|3
     cfg.nagLevel         = (frame.data[5] >> 2) & 0x0F;                               // bit42|4
     cfg.laneChangeState  = ((frame.data[5] >> 6) & 0x03) | ((frame.data[6] & 0x07) << 2); // bit46|5
+    // Bring-up diag: log the first 923 frame carrying a valid fused limit so we
+    // can cross-check with 921 which ID the car actually broadcasts.
+    static bool logged923 = false;
+    if (!logged923) {
+        uint8_t fl = frame.data[1] & 0x1F;
+        if (fl > 0 && fl < 31) {
+            uint32_t up = (millis() - cfg.uptimeStart) / 1000;
+            char msg[48];
+            snprintf(msg, sizeof(msg), "DAS 923 fusedLim=%ukph raw=%u", (unsigned)(fl * 5), (unsigned)fl);
+            addDiagLog(up, msg);
+            logged923 = true;
+        }
+    }
+}
+
+// ── DAS_status_ISA (0x399 / 921) ─────────────────────────────────────────────
+// Secondary source for fused speed limit — tesla-open-can-mod keys off this ID.
+// Some vehicle variants broadcast fused limit on 921, others on 923. Listen on
+// both; latest update wins. Diag logs the first occurrence on each so field data
+// shows which ID the car uses.
+inline void handleDASStatusISA(const CanFrame& frame) {
+    if (frame.dlc < 2) return;
+    uint8_t fl = frame.data[1] & 0x1F;
+    if (fl > 0 && fl < 31) {
+        cfg.fusedSpeedLimit = fl;
+        static bool logged921 = false;
+        if (!logged921) {
+            uint32_t up = (millis() - cfg.uptimeStart) / 1000;
+            char msg[48];
+            snprintf(msg, sizeof(msg), "DAS 921 fusedLim=%ukph raw=%u", (unsigned)(fl * 5), (unsigned)fl);
+            addDiagLog(up, msg);
+            logged921 = true;
+        }
+    }
 }
 
 // ── DAS_status2 (0x389 / 905) ────────────────────────────────────────────────

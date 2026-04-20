@@ -359,7 +359,6 @@ button{font-family:inherit;cursor:pointer}
         <div class="chips">
           <div class="chip fade-el hide" id="miBmsT"><span class="chip-ic">🔋</span><span class="chip-v"><span id="vBmsT"></span>°C</span></div>
           <div class="chip fade-el hide" id="rowCabinTemp"><span class="chip-ic">🌡</span><span class="chip-v"><span id="vCabinTemp"></span>°C</span></div>
-          <div class="chip fade-el hide" id="miSmart"><span class="chip-ic">⚡</span><span class="chip-v" id="vSmart"></span></div>
           <div class="chip fade-el hide" id="miUp"><span class="chip-ic">⏱</span><span class="chip-v" id="vUp"></span></div>
         </div>
       </div>
@@ -407,52 +406,8 @@ button{font-family:inherit;cursor:pointer}
 
       <div class="panel" id="panelHw3" style="display:none">
         <div class="ptitle">HW3 速度偏移</div>
-        <div class="row" id="rowHw3Manual">
-          <div class="rlbl">手动偏移</div>
-          <div class="stepper">
-            <button class="sbtn" id="hw3Minus">−</button>
-            <div class="sval"><span id="vHw3M">--</span>%</div>
-            <button class="sbtn" id="hw3Plus">+</button>
-            <div class="rval" style="margin-left:12px">% 限速（0~100%，每档 5%）</div>
-          </div>
-        </div>
-        <div class="row"><div class="rlbl">智能模式</div><div class="tog" id="tgSmart" data-k="hw3Smart"></div><div class="rval">随车速自动调节偏移</div></div>
-        <div class="row"><div class="rlbl">高速让原车</div><div class="tog" id="tgHiPass" data-k="hw3HiPass"></div><div class="rval">≥80 km/h 时交还原车 EAP 偏移</div></div>
-      </div>
-
-      <!-- HW3 智能规则（分段偏移） -->
-      <div class="panel" id="panelSmart" style="display:none">
-        <div class="ptitle">HW3 智能规则 · 分段偏移（% of 限速）</div>
-        <div class="row">
-          <div class="rlbl">低速</div>
-          <div class="rval" style="flex:0 0 180px">&le; <input type="number" id="smT1" min="20" max="195" class="car-num"> km/h</div>
-          <div class="stepper"><button class="sbtn" data-sm="O1" data-d="-5">−</button><div class="sval"><span id="smO1V">--</span>%</div><button class="sbtn" data-sm="O1" data-d="5">+</button></div>
-        </div>
-        <div class="row">
-          <div class="rlbl">1 档</div>
-          <div class="rval" style="flex:0 0 180px"><span id="smT1L">--</span>~<input type="number" id="smT2" min="20" max="200" class="car-num"> km/h</div>
-          <div class="stepper"><button class="sbtn" data-sm="O2" data-d="-5">−</button><div class="sval"><span id="smO2V">--</span>%</div><button class="sbtn" data-sm="O2" data-d="5">+</button></div>
-        </div>
-        <div class="row">
-          <div class="rlbl">2 档</div>
-          <div class="rval" style="flex:0 0 180px"><span id="smT2L">--</span>~<input type="number" id="smT3" min="20" max="200" class="car-num"> km/h</div>
-          <div class="stepper"><button class="sbtn" data-sm="O3" data-d="-5">−</button><div class="sval"><span id="smO3V">--</span>%</div><button class="sbtn" data-sm="O3" data-d="5">+</button></div>
-        </div>
-        <div class="row">
-          <div class="rlbl">3 档</div>
-          <div class="rval" style="flex:0 0 180px"><span id="smT3L">--</span>~<input type="number" id="smT4" min="20" max="200" class="car-num"> km/h</div>
-          <div class="stepper"><button class="sbtn" data-sm="O4" data-d="-5">−</button><div class="sval"><span id="smO4V">--</span>%</div><button class="sbtn" data-sm="O4" data-d="5">+</button></div>
-        </div>
-        <div class="row">
-          <div class="rlbl">高速</div>
-          <div class="rval" style="flex:0 0 180px">&gt; <span id="smT4L">--</span> km/h</div>
-          <div class="stepper"><button class="sbtn" data-sm="O5" data-d="-5">−</button><div class="sval"><span id="smO5V">--</span>%</div><button class="sbtn" data-sm="O5" data-d="5">+</button></div>
-        </div>
-        <div class="actions" style="margin-top:16px">
-          <button class="abtn gray" onclick="smartReset()">🔄 恢复默认</button>
-          <button class="abtn blue" onclick="smartSave()">💾 保存规则</button>
-        </div>
-        <div class="tip">🛈 每档偏移范围 0~50%；阈值 T1&lt;T2&lt;T3&lt;T4 必须递增；保存后立即生效。</div>
+        <div class="row"><div class="rlbl">自动突破</div><div class="tog" id="tgAuto" data-k="hw3AutoSpeed"></div><div class="rval">&lt;80 km/h 限速时自动拉到 64/85/100 目标</div></div>
+        <div class="tip">🛈 ≥80 km/h 限速让原车 EAP 偏移接管；低速限速下按固定目标提速。</div>
       </div>
 
       <div class="panel" id="panelHw4" style="display:none">
@@ -514,6 +469,7 @@ button{font-family:inherit;cursor:pointer}
       </div>
       <div class="panel" id="panelBridge">
         <div class="ptitle">WiFi 桥接（上联互联网）</div>
+        <div class="row"><div class="rlbl">启用桥接</div><div class="tog" id="tgBrEn"></div><div class="rval" id="brEnMode">关闭</div></div>
         <div class="info-grid">
           <div class="info-item"><div class="info-lbl">状态</div><div class="info-val" id="brStat">--</div></div>
           <div class="info-item"><div class="info-lbl">当前连接</div><div class="info-val" id="brSsid">--</div></div>
@@ -759,8 +715,6 @@ button{font-family:inherit;cursor:pointer}
 var tok = sessionStorage.getItem('fsd_tok') || '';
 var pollT = null;
 var last = null;
-var smartLocal = {T1:40,T2:60,T3:80,T4:100,O1:50,O2:25,O3:15,O4:10,O5:8};
-var smartDirty = false;
 
 // ───── 导航 ─────
 function applyNavForPage(p){
@@ -789,7 +743,7 @@ window.__spdDisplay = 0; window.__spdTarget = 0; window.__spdLast = 0;
   var t = window.__spdTarget || 0;
   var v = window.__spdDisplay || 0;
   var diff = t - v;
-  if(Math.abs(diff) > 0.4){ v += diff * 0.28; }
+  if(Math.abs(diff) > 0.4){ v += diff * 0.45; }
   else { v = t; }
   window.__spdDisplay = v;
   var show = Math.round(v);
@@ -909,8 +863,8 @@ function render(d){
     offPctTxt = 'HW4';
     offShow = offKmh > 0;
   } else if(fusedKmh > 0){
-    // HW3/Legacy：需要真实限速才能算出有意义的 km/h
-    var offPct = (d.hw3Smart || d.hw3Offset < 0) ? (d.smartPct || 0) : d.hw3Offset;
+    // HW3/Legacy：显示 Tesla 原车偏移百分比（从 mux-0 解码的 hw3AutoOffset）
+    var offPct = d.hw3AutoOffset >= 0 ? d.hw3AutoOffset : 0;
     offKmh = Math.round(fusedKmh * offPct / 100);
     offPctTxt = (offPct > 0 ? '+' : '') + offPct + '%';
     offShow = offKmh > 0;
@@ -972,10 +926,6 @@ function render(d){
     apChip.className = 'ap-mini fade-el on';
   }
   apChip.classList.toggle('hide', !showAp);
-  // 智能档
-  var miSmart = document.getElementById('miSmart');
-  if(d.hw3Smart) document.getElementById('vSmart').textContent = '档位 ' + d.smartTier;
-  miSmart.classList.toggle('hide', !d.hw3Smart);
   // 运行时间：始终有
   document.getElementById('vUp').textContent = fmtUptime(d.uptime);
   document.getElementById('miUp').classList.remove('hide');
@@ -991,13 +941,12 @@ function render(d){
 
   // 控制页
   setTog('tgFsd', d.fsdEnable);
-  setTog('tgSmart', d.hw3Smart);
+  setTog('tgAuto', d.hw3AutoSpeed==null ? true : !!d.hw3AutoSpeed);
   setTog('tgIsa', d.isaChime);
   setTog('tgEmerg', d.emergencyDet);
   setTog('tgForce', d.forceActivate);
   setTog('tgOvr', d.overrideSL);
   setTog('tgTrack', d.trackMode);
-  setTog('tgHiPass', d.hw3HiPass==null ? true : !!d.hw3HiPass);
   // HW 选中
   document.querySelectorAll('#grpHw .pill').forEach(function(b){
     b.classList.toggle('active', parseInt(b.dataset.v)===d.hwMode);
@@ -1018,12 +967,8 @@ function render(d){
   setTog('tgApRs', d.apRestart);
 
   // HW3/HW4 面板切换（0=Legacy, 1=HW3, 2=HW4）
-  var smartOn = !!d.hw3Smart;
   document.getElementById('panelHw3').style.display = isHW3 ? 'block' : 'none';
   document.getElementById('panelHw4').style.display = isHW4 ? 'block' : 'none';
-  document.getElementById('panelSmart').style.display = (isHW3 && smartOn) ? 'block' : 'none';
-  // HW3 内：智能 ON 时隐藏手动偏移；OFF 时显示
-  document.getElementById('rowHw3Manual').style.display = smartOn ? 'none' : '';
   // 模式专属开关行
   document.getElementById('rowEmerg').style.display = isHW4 ? '' : 'none';
   document.getElementById('rowOvr').style.display = isLegacy ? '' : 'none';
@@ -1032,27 +977,6 @@ function render(d){
   document.querySelectorAll('#grpHw4Off .pill').forEach(function(b){
     b.classList.toggle('active', parseInt(b.dataset.hw4)===d.hw4Offset);
   });
-  // HW3 手动偏移显示
-  var hw3pct = d.hw3Offset >= 0 ? d.hw3Offset : (d.hw3AutoOffset >= 0 ? d.hw3AutoOffset : 0);
-  document.getElementById('vHw3M').textContent = hw3pct;
-  // 智能规则：阈值 & 各档偏移
-  if(document.getElementById('smT1') && !smartDirty){
-    document.getElementById('smT1').value = d.hw3SmT1;
-    document.getElementById('smT2').value = d.hw3SmT2;
-    document.getElementById('smT3').value = d.hw3SmT3;
-    document.getElementById('smT4').value = d.hw3SmT4;
-    document.getElementById('smT1L').textContent = d.hw3SmT1;
-    document.getElementById('smT2L').textContent = d.hw3SmT2;
-    document.getElementById('smT3L').textContent = d.hw3SmT3;
-    document.getElementById('smT4L').textContent = d.hw3SmT4;
-    document.getElementById('smO1V').textContent = d.hw3SmO1;
-    document.getElementById('smO2V').textContent = d.hw3SmO2;
-    document.getElementById('smO3V').textContent = d.hw3SmO3;
-    document.getElementById('smO4V').textContent = d.hw3SmO4;
-    document.getElementById('smO5V').textContent = d.hw3SmO5;
-    smartLocal = {T1:d.hw3SmT1,T2:d.hw3SmT2,T3:d.hw3SmT3,T4:d.hw3SmT4,
-                  O1:d.hw3SmO1,O2:d.hw3SmO2,O3:d.hw3SmO3,O4:d.hw3SmO4,O5:d.hw3SmO5};
-  }
 
   // CAN 页
   document.getElementById('cRx').textContent = d.rx;
@@ -1278,6 +1202,16 @@ document.getElementById('tgDns').onclick = function(){
   fetch('/api/wifi-bridge/set'+qs)
     .then(function(r){if(r.status===200){toast('DNS 过滤 '+(newVal?'已启用':'已关闭'), 'ok');brPoll();}else toast('失败','err')});
 };
+// 桥接启用开关（upstreamEnable）
+document.getElementById('tgBrEn').onclick = function(){
+  var t = this;
+  var newVal = !t.classList.contains('on');
+  t.classList.toggle('on', newVal);
+  document.getElementById('brEnMode').textContent = newVal?'启用':'关闭';
+  var qs = '?upstreamEnable='+(newVal?1:0) + (tok?'&token='+encodeURIComponent(tok):'');
+  fetch('/api/wifi-bridge/set'+qs)
+    .then(function(r){if(r.status===200){toast('WiFi 桥接 '+(newVal?'已启用':'已关闭'), 'ok');brPoll();}else toast('失败','err')});
+};
 
 // ───── WiFi 桥接 / DNS 状态轮询 ─────
 function brPoll(){
@@ -1293,6 +1227,10 @@ function brPoll(){
       if(d.thermalStatus) t += ' · '+d.thermalStatus;
     }
     document.getElementById('brRssi').textContent = t;
+    // 桥接启用开关同步
+    var tgEn = document.getElementById('tgBrEn');
+    tgEn.classList.toggle('on', !!d.upstreamEnable);
+    document.getElementById('brEnMode').textContent = d.upstreamEnable ? '启用' : '关闭';
     // DNS 开关 & 文案
     var tg = document.getElementById('tgDns');
     tg.classList.toggle('on', !!d.dnsEnable);
@@ -1374,73 +1312,9 @@ document.getElementById('tgApRs').onclick = function(){
     .catch(function(){toast('网络错误','err')});
 };
 
-// ───── HW3 偏移步进 ─────
-document.getElementById('hw3Plus').onclick = function(){
-  if(!last) return;
-  var cur = last.hw3Offset >= 0 ? last.hw3Offset : 0;
-  var v = Math.min(100, cur + 5); // 5 raw = 1 km/h
-  apiSet('hw3Offset', v);
-};
-document.getElementById('hw3Minus').onclick = function(){
-  if(!last) return;
-  var cur = last.hw3Offset >= 0 ? last.hw3Offset : 0;
-  var v = Math.max(0, cur - 5);
-  apiSet('hw3Offset', v);
-};
 document.querySelectorAll('#grpHw4Off .pill').forEach(function(b){
   b.onclick = function(){apiSet('hw4Offset', b.dataset.hw4)};
 });
-
-// ───── 智能规则 ─────
-document.querySelectorAll('#panelSmart [data-sm]').forEach(function(b){
-  b.onclick = function(){
-    var key = b.dataset.sm; // O1..O5
-    var d = parseInt(b.dataset.d); // -5 or +5
-    var cur = smartLocal[key] || 0;
-    var v = Math.max(0, Math.min(50, cur + d));
-    smartLocal[key] = v;
-    smartDirty = true;
-    document.getElementById('sm'+key+'V').textContent = v;
-  };
-});
-['smT1','smT2','smT3','smT4'].forEach(function(id){
-  var el = document.getElementById(id);
-  if(!el) return;
-  el.oninput = function(){
-    smartDirty = true;
-    var k = id.substring(2); // T1..T4
-    smartLocal[k] = parseInt(el.value) || 0;
-  };
-});
-function smartSave(){
-  var t1 = smartLocal.T1, t2 = smartLocal.T2, t3 = smartLocal.T3, t4 = smartLocal.T4;
-  if(!(t1 < t2 && t2 < t3 && t3 < t4)){
-    toast('阈值必须递增 T1<T2<T3<T4','err'); return;
-  }
-  var qs = '?hw3SmT1='+t1+'&hw3SmT2='+t2+'&hw3SmT3='+t3+'&hw3SmT4='+t4
-         +'&hw3SmO1='+smartLocal.O1+'&hw3SmO2='+smartLocal.O2
-         +'&hw3SmO3='+smartLocal.O3+'&hw3SmO4='+smartLocal.O4+'&hw3SmO5='+smartLocal.O5;
-  if(tok) qs += '&token='+encodeURIComponent(tok);
-  fetch('/api/set'+qs).then(function(r){
-    if(r.status===200){ smartDirty=false; toast('规则已保存','ok'); poll(); }
-    else if(r.status===403){ showPin(); }
-    else { smartDirty=false; toast('保存失败','err'); }
-  }).catch(function(){ smartDirty=false; toast('网络错误','err'); });
-}
-function smartReset(){
-  smartLocal = {T1:40,T2:60,T3:80,T4:100,O1:50,O2:25,O3:15,O4:10,O5:8};
-  smartDirty = true;
-  document.getElementById('smT1').value = 40;
-  document.getElementById('smT2').value = 60;
-  document.getElementById('smT3').value = 80;
-  document.getElementById('smT4').value = 100;
-  document.getElementById('smO1V').textContent = 50;
-  document.getElementById('smO2V').textContent = 25;
-  document.getElementById('smO3V').textContent = 15;
-  document.getElementById('smO4V').textContent = 10;
-  document.getElementById('smO5V').textContent = 8;
-  smartSave();  // auto-persist so reset survives page navigation
-}
 
 // ───── apiSet ─────
 function apiSet(k, v){

@@ -42,12 +42,14 @@
 #endif
 
 extern volatile bool otaPendingRestart;  // defined in main.cpp
+void saveRestartReason(const char* tag);  // defined in main.cpp
 
 namespace ota_impl {
 
 extern "C" {
     #include "esp_http_client.h"
     #include "esp_https_ota.h"
+    #include "esp_ota_ops.h"
     #include "esp_crt_bundle.h"
     #include "freertos/FreeRTOS.h"
     #include "freertos/task.h"
@@ -212,6 +214,13 @@ static void otaDoPull(const char* url) {
     http_cfg.keep_alive_enable         = true;
     http_cfg.disable_auto_redirect     = false;
     http_cfg.max_redirection_count     = 5;
+    // GitHub Releases 302 to objects.githubusercontent.com with a 500+ byte
+    // S3 signed Location header. Default 512-byte recv buffer truncates it,
+    // esp_http_client_set_redirection parses a broken URL, and the retry
+    // lands on a garbage host that returns a bogus status → esp_https_ota's
+    // _http_handle_response_code maps to ESP_FAIL(-1).
+    http_cfg.buffer_size               = 4096;
+    http_cfg.buffer_size_tx            = 1024;
 
     esp_https_ota_config_t ota_cfg = {};
     ota_cfg.http_config = &http_cfg;
@@ -250,6 +259,7 @@ static void otaDoPull(const char* url) {
     }
     gOta.written = gOta.total;
     otaSetMsg(OTA_SUCCESS, "更新成功,即将重启");
+    saveRestartReason("ota pull success");
     otaPendingRestart = true;
 }
 
