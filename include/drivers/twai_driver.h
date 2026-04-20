@@ -19,7 +19,7 @@ struct TWAIDriver : public CanDriver {
 
     bool init() override {
         twai_general_config_t g = TWAI_GENERAL_CONFIG_DEFAULT(txPin, rxPin, TWAI_MODE_NORMAL);
-        g.rx_queue_len = 32;
+        g.rx_queue_len = 128;
         g.tx_queue_len = 16;
         twai_timing_config_t t = TWAI_TIMING_CONFIG_500KBITS();
         twai_filter_config_t f = TWAI_FILTER_CONFIG_ACCEPT_ALL();
@@ -91,7 +91,7 @@ private:
         twai_stop();
         twai_driver_uninstall();
         twai_general_config_t g = TWAI_GENERAL_CONFIG_DEFAULT(txPin, rxPin, TWAI_MODE_NORMAL);
-        g.rx_queue_len = 32;
+        g.rx_queue_len = 128;
         g.tx_queue_len = 16;
         twai_timing_config_t t = TWAI_TIMING_CONFIG_500KBITS();
         twai_filter_config_t f = TWAI_FILTER_CONFIG_ACCEPT_ALL();
@@ -108,7 +108,7 @@ private:
         twai_stop();             // defensive: no-op if already stopped/uninstalled
         twai_driver_uninstall();
         twai_general_config_t g = TWAI_GENERAL_CONFIG_DEFAULT(txPin, rxPin, TWAI_MODE_NORMAL);
-        g.rx_queue_len = 32;
+        g.rx_queue_len = 128;
         g.tx_queue_len = 16;
         twai_timing_config_t t = TWAI_TIMING_CONFIG_500KBITS();
         twai_filter_config_t f = TWAI_FILTER_CONFIG_ACCEPT_ALL();

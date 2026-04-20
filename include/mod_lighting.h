@@ -143,7 +143,10 @@ inline void handleSCCMStalk(CanFrame& frame, CanDriver& driver) {
             frame.data[1] = (frame.data[1] & 0xCF) | (2 << 4);
             frame.data[0] = (uint8_t)(((0x249 & 0xFF) + ((0x249 >> 8) & 0xFF) +
                                         frame.data[1] + frame.data[2]) & 0xFF);
+            // Only re-TX when we are overriding. On a non-MITM tap, echoing an
+            // unmodified 0x249 just duplicates what SCCM is already sending —
+            // wasted TX that steals bandwidth and drives TEC toward bus-off.
+            if (!driver.send(frame)) cfg.errorCount++;
         }
     }
-    if (!driver.send(frame)) cfg.errorCount++;
 }
