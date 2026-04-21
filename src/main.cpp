@@ -974,11 +974,14 @@ void setupWebServer() {
         String upIP = upConnected ? WiFi.localIP().toString() : String();
 
         uint32_t totalBlocked = 0;
-        DNSBlockedDomainStatEntry entries[kDnsBlockedDomainCapacity];
+        // Heap-allocated: capacity=50 * 136B = 6.8KB, too large for the
+        // AsyncTCP handler task stack (~4-8KB). See mod_dns.h.
+        auto* entries = new (std::nothrow) DNSBlockedDomainStatEntry[kDnsBlockedDomainCapacity];
+        if (!entries) { req->send(500, "text/plain", "oom"); return; }
         size_t recentBlocked = gDnsFilter.copyBlockedDomains(entries, kDnsBlockedDomainCapacity, totalBlocked);
 
         String json;
-        json.reserve(3200);
+        json.reserve(6400);
         json += "{";
         json += "\"upstreamEnable\":"; json += (gWifiBridgeCfg.enabled ? "true" : "false");
         json += ",\"upstreamConnected\":"; json += (upConnected ? "true" : "false");
@@ -1036,7 +1039,17 @@ void setupWebServer() {
             json += ",\"lastBlockedAt\":"; json += String(entries[i].lastBlockedAtUptimeSeconds);
             json += "}";
         }
-        json += "]}";
+        json += "]";
+        json += ",\"pingEnable\":"; json += (pingIsEnabled() ? "true" : "false");
+        json += ",\"pingId\":\""; json += wifiBridgeJsonEscape(String(pingDeviceId())); json += "\"";
+        json += ",\"pingMsg\":\""; json += wifiBridgeJsonEscape(String(pingLastMsg())); json += "\"";
+        {
+            uint32_t ps = pingLastSuccessMs();
+            uint32_t ageSec = ps ? (millis() - ps) / 1000 : 0;
+            json += ",\"pingLastSuccessAgeSec\":"; json += (ps ? String((unsigned)ageSec) : String("null"));
+        }
+        json += "}";
+        delete[] entries;
         req->send(200, "application/json", json);
     });
 
@@ -1064,6 +1077,10 @@ void setupWebServer() {
                 wifiBridgeCopyStr(gDnsFilterCfg.blocklist, sizeof(gDnsFilterCfg.blocklist), v);
                 changed = true;
             }
+        }
+        if (req->hasParam("pingEnable")) {
+            pingSetEnabled(req->getParam("pingEnable")->value().toInt() != 0);
+            changed = true;
         }
         if (changed) wifiBridgeSaveConfig();
         if (wifiChanged) wifiBridgeRequestApply();
@@ -1106,6 +1123,35 @@ void setupWebServer() {
         gDnsFilter.clearBlockedRequests();
         dnsIpBlockerClear();
         req->send(200, "text/plain", "OK");
+    });
+
+    server.on("/api/wifi-bridge/blocked-download", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkToken(req)) { req->send(401, "text/plain", "unauthorized"); return; }
+        uint32_t total = 0;
+        // Heap: same reasoning as /status — capacity=50 × 136B would overflow
+        // the AsyncTCP handler task stack.
+        auto* entries = new (std::nothrow) DNSBlockedDomainStatEntry[kDnsBlockedDomainCapacity];
+        if (!entries) { req->send(500, "text/plain", "oom"); return; }
+        size_t n = gDnsFilter.copyBlockedDomains(entries, kDnsBlockedDomainCapacity, total);
+        uint32_t nowSec = (millis() - cfg.uptimeStart) / 1000;
+
+        String csv;
+        csv.reserve(128 + n * 160);
+        csv += "domain,count,last_blocked_seconds_ago\n";
+        for (size_t i = 0; i < n; ++i) {
+            uint32_t ago = (entries[i].lastBlockedAtUptimeSeconds <= nowSec)
+                ? (nowSec - entries[i].lastBlockedAtUptimeSeconds) : 0;
+            csv += entries[i].domain;
+            csv += ",";
+            csv += String((unsigned)entries[i].count);
+            csv += ",";
+            csv += String((unsigned)ago);
+            csv += "\n";
+        }
+        delete[] entries;
+        AsyncWebServerResponse* resp = req->beginResponse(200, "text/csv; charset=utf-8", csv);
+        resp->addHeader("Content-Disposition", "attachment; filename=\"dns_blocked.csv\"");
+        req->send(resp);
     });
 #endif
 
@@ -1546,6 +1592,7 @@ void loop() {
             WiFi.status() == WL_CONNECTED ? 1 : 0
         );
         syncNATState();
+        pingService();
     }
 #else
     // Captive portal — must be called frequently to answer DNS queries promptly

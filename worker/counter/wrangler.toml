@@ -1,0 +1,10 @@
+name = "tesla-counter"
+main = "src/worker.js"
+compatibility_date = "2026-04-21"
+
+# KV namespace: tesla_counter (created via Cloudflare API for account
+# 155e3c0adc51eb9d736848dbe07c49fd). The `COUNTER` binding name is what the
+# worker code references (env.COUNTER).
+[[kv_namespaces]]
+binding = "COUNTER"
+id = "8a103627e2dc4f8f871a22c1f2d5a1e0"

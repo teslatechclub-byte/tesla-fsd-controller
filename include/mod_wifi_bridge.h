@@ -349,6 +349,7 @@ static inline void wifiBridgeLoadConfig() {
     wifiBridgeCopyStr(gDnsFilterCfg.allowlist, sizeof(gDnsFilterCfg.allowlist), p.getString("ub_allow", ""));
     wifiBridgeCopyStr(gDnsFilterCfg.blocklist, sizeof(gDnsFilterCfg.blocklist), p.getString("ub_block", ""));
     bool initialized = p.getBool("ub_init", false);
+    pingLoadEnabled(p);
     p.end();
 
     // First-run safety: default DNS filter ON with Tesla-recommended preset so
@@ -414,6 +415,7 @@ static inline void wifiBridgeSaveConfig() {
     p.putBool("ub_dnsEn", gDnsFilterCfg.enabled);
     p.putString("ub_allow", gDnsFilterCfg.allowlist);
     p.putString("ub_block", gDnsFilterCfg.blocklist);
+    pingSaveEnabled(p);
     p.end();
 }
 

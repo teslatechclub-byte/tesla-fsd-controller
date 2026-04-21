@@ -39,6 +39,7 @@ FSDConfig cfg;  // NOLINT(misc-definitions-in-headers)
 #define MOD_DNS_IMPLEMENTATION
 #include "mod_dns.h"
 #include "mod_thermal.h"
+#include "mod_telemetry_ping.h"
 #include "mod_wifi_bridge.h"
 #endif
 

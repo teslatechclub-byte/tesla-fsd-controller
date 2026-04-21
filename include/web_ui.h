@@ -387,10 +387,24 @@ select:focus{outline:none;border-color:#38bdf8}
     <div style="margin-top:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <span style="font-size:12px;color:#64748b">DNS 拦截 <span id="brBlkTot">0</span> 次 · IP 拦截 <span id="brIpDrops">0</span> 次 (cache <span id="brIpCache">0</span>/<span id="brIpCap">256</span> · peak <span id="brIpPeak">0</span>)</span>
-        <button onclick="brBlkClear()" style="height:28px;padding:0 12px;background:#334155;color:#cbd5e1;border:none;border-radius:6px;font-size:12px;cursor:pointer">清空</button>
+        <div style="display:flex;gap:6px">
+          <button onclick="brBlkDl()" style="height:28px;padding:0 10px;background:#1e40af;color:#dbeafe;border:none;border-radius:6px;font-size:12px;cursor:pointer">下载 CSV</button>
+          <button onclick="brBlkClear()" style="height:28px;padding:0 12px;background:#334155;color:#cbd5e1;border:none;border-radius:6px;font-size:12px;cursor:pointer">清空</button>
+        </div>
       </div>
       <div id="brBlkList" style="font-family:monospace;font-size:12px;max-height:120px;overflow-y:auto"></div>
     </div>
+  </div>
+
+  <div style="margin-top:14px;padding-top:14px;border-top:1px solid #1e293b">
+    <div style="font-size:12px;font-weight:700;color:#64748b;letter-spacing:2px;margin-bottom:10px">匿名统计</div>
+    <div class="row"><span class="row-label">参与匿名计数</span>
+      <label class="switch"><input type="checkbox" id="brPingEn" onchange="brSetPing()"><span class="slider"></span></label></div>
+    <div style="color:#64748b;font-size:11px;margin:4px 0 6px 0;line-height:1.6">
+      每日一次上报 <code style="color:#94a3b8">{id, 版本, 环境}</code>；id = sha256(MAC)[0..8]（<span style="color:#34d399">不可反推 MAC</span>），不记 IP。作者用它看大致装机量与版本分布。
+    </div>
+    <div style="font-size:11px;color:#64748b">设备 ID：<span id="brPingId" style="font-family:monospace;color:#94a3b8">—</span></div>
+    <div style="font-size:11px;color:#64748b;margin-top:4px">状态：<span id="brPingMsg">—</span></div>
   </div>
 
   </div>
@@ -893,7 +907,25 @@ function brPoll(){
           '<span>'+escHtml(e.domain)+'</span><span style="color:#94a3b8">×'+e.count+'</span></div>';
       }).join('');
     }
+    if(d.pingEnable!==undefined){
+      document.getElementById('brPingEn').checked=!!d.pingEnable;
+      document.getElementById('brPingId').textContent=d.pingId||'—';
+      var pm=d.pingMsg||'—';
+      if(d.pingLastSuccessAgeSec!=null){
+        var a=d.pingLastSuccessAgeSec, ago;
+        if(a<60)ago=a+' 秒前';
+        else if(a<3600)ago=Math.floor(a/60)+' 分钟前';
+        else ago=Math.floor(a/3600)+' 小时前';
+        pm+=' · '+ago;
+      }
+      document.getElementById('brPingMsg').textContent=pm;
+    }
   }).catch(function(){});
+}
+function brSetPing(){
+  var v=document.getElementById('brPingEn').checked?1:0;
+  fetch('/api/wifi-bridge/set?pingEnable='+v+(token?'&token='+token:''))
+    .then(function(r){msg('brMsg',r.ok?'已保存':'保存失败',r.ok);});
 }
 function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function brSet(){
@@ -973,6 +1005,15 @@ function brDel(ssid){
 function brBlkClear(){
   fetch('/api/wifi-bridge/blocked-clear'+(token?'?token='+token:''))
     .then(function(r){msg('brMsg',r.ok?'已清空':'清空失败',r.ok);});
+}
+function brBlkDl(){
+  var url='/api/wifi-bridge/blocked-download'+(token?'?token='+token:'');
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='dns_blocked.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 function msg(id,text,ok){
   var el=document.getElementById(id);

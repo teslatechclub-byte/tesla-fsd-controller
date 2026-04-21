@@ -62,7 +62,7 @@ struct DNSFilterConfig {
     char blocklist[1024] = {};
 };
 
-static constexpr size_t kDnsBlockedDomainCapacity = 20;
+static constexpr size_t kDnsBlockedDomainCapacity = 50;
 
 struct DNSBlockedDomainStatEntry {
     char domain[128] = {};

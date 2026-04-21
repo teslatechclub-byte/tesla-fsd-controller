@@ -11,3 +11,5 @@ preview_dash.html
 test_car_mock.py
 CMakeLists.txt
 src/CMakeLists.txt
+worker/counter/.wrangler/
+node_modules/
