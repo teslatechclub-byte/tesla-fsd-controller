@@ -2,10 +2,12 @@ name = "tesla-counter"
 main = "src/worker.js"
 compatibility_date = "2026-04-21"
 
-# Keep the classic *.workers.dev URL alive so v1.4.24 devices (hard-coded
-# to tesla-counter.bswlhbhmt.workers.dev) keep reporting after we switch
-# newer firmware to the custom domain.
-workers_dev = true
+# workers.dev URL disabled — it bypassed the zone-level WAF/Rate-Limit/Bot
+# rules on wjsall.uk, so traffic there was unprotected. Devices on v1.4.23
+# or earlier (hard-coded to *.workers.dev) lose telemetry only; core
+# functionality is unaffected. CN users never reached *.workers.dev anyway
+# due to GFW blocks on that subdomain.
+workers_dev = false
 
 # Custom domain — CF auto-creates the DNS record (proxied) and issues an
 # SSL cert. The zone wjsall.uk must already be on this account.

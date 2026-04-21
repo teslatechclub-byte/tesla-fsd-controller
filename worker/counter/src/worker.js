@@ -23,7 +23,7 @@ export default {
       return handlePing(request, env);
     }
     if (request.method === "GET" && url.pathname === "/stats") {
-      return handleStats(env);
+      return handleStatsCached(request, env);
     }
     return new Response(
       "tesla-counter\n\nPOST /ping {id, version, env}\nGET /stats\n",
@@ -51,6 +51,23 @@ async function handlePing(request, env) {
     { expirationTtl: 3 * 24 * 3600 }
   );
   return txt("ok");
+}
+
+async function handleStatsCached(request, env) {
+  const cache = caches.default;
+  const cacheKey = new Request(new URL(request.url).toString(), { method: "GET" });
+  let resp = await cache.match(cacheKey);
+  if (resp) {
+    resp = new Response(resp.body, resp);
+    resp.headers.set("X-Cache", "HIT");
+    return resp;
+  }
+  resp = await handleStats(env);
+  const toCache = resp.clone();
+  // ctx.waitUntil isn't passed here; we just await — acceptable for tiny payload.
+  await cache.put(cacheKey, toCache);
+  resp.headers.set("X-Cache", "MISS");
+  return resp;
 }
 
 async function handleStats(env) {
@@ -88,7 +105,11 @@ async function handleStats(env) {
     byEnv,
     byVersion,
     byCountry,
-  }), { headers: { ...CORS, "Content-Type": "application/json" } });
+  }), { headers: {
+    ...CORS,
+    "Content-Type": "application/json",
+    "Cache-Control": "public, s-maxage=60",
+  } });
 }
 
 async function listAll(KV, prefix) {
