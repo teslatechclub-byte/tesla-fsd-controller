@@ -58,13 +58,17 @@ Closed-source FSD activation modules sell for around ¥500. Here's the full comp
 ### Step 1: Download the firmware for your board
 
 > Two firmware files are provided per board — use the right one for the right purpose:
-> - **`firmware_xxx.bin`** (merged binary) → first-time flash via ESP Web Flasher at address `0x0`
-> - **`firmware_xxx_ota.bin`** (OTA binary) → wireless updates via the web panel "OTA Update" card
+> - **`xxx_v1.4.25.bin`** (merged binary) → first-time flash via ESP Web Flasher at address `0x0`
+> - **`xxx_v1.4.25_ota.bin`** (OTA binary) → wireless updates via the web panel "OTA Update" card, or let the device pull from GitHub automatically
+>
+> For the newest assets, see the [**releases page**](https://github.com/wjsall/tesla-fsd-controller/releases/latest). Direct links below are for **v1.4.25**:
 
-| Board | First-time flash | OTA update | Power |
+| Board | First-time flash | OTA update | Notes |
 |-------|----------|----------|-------|
-| Standard ESP32 dev board + SN65HVD230 | [firmware_esp32.bin](https://github.com/wjsall/tesla-fsd-controller/releases/latest/download/firmware_esp32.bin) | [firmware_esp32_ota.bin](https://github.com/wjsall/tesla-fsd-controller/releases/latest/download/firmware_esp32_ota.bin) | 5V USB |
-| **Waveshare ESP32-S3-RS485-CAN** | [firmware_esp32s3_waveshare.bin](https://github.com/wjsall/tesla-fsd-controller/releases/latest/download/firmware_esp32s3_waveshare.bin) | [firmware_esp32s3_waveshare_ota.bin](https://github.com/wjsall/tesla-fsd-controller/releases/latest/download/firmware_esp32s3_waveshare_ota.bin) | **7–36V direct** or **USB-C** |
+| Standard ESP32 + SN65HVD230 | [esp32_v1.4.25.bin](https://github.com/wjsall/tesla-fsd-controller/releases/download/v1.4.25/esp32_v1.4.25.bin) | [ota](https://github.com/wjsall/tesla-fsd-controller/releases/download/v1.4.25/esp32_v1.4.25_ota.bin) | Entry-level, 5V USB |
+| **Waveshare ESP32-S3-RS485-CAN** | [esp32s3_waveshare_v1.4.25.bin](https://github.com/wjsall/tesla-fsd-controller/releases/download/v1.4.25/esp32s3_waveshare_v1.4.25.bin) | [ota](https://github.com/wjsall/tesla-fsd-controller/releases/download/v1.4.25/esp32s3_waveshare_v1.4.25_ota.bin) | In-car permanent install, **7–36V direct** |
+| ESP32 Wi-Fi bridge | [esp32_wifi_v1.4.25.bin](https://github.com/wjsall/tesla-fsd-controller/releases/download/v1.4.25/esp32_wifi_v1.4.25.bin) | [ota](https://github.com/wjsall/tesla-fsd-controller/releases/download/v1.4.25/esp32_wifi_v1.4.25_ota.bin) | Wi-Fi uplink for MCU + DNS filter |
+| Waveshare ESP32-S3 Wi-Fi bridge | [esp32s3_waveshare_wifi_v1.4.25.bin](https://github.com/wjsall/tesla-fsd-controller/releases/download/v1.4.25/esp32s3_waveshare_wifi_v1.4.25.bin) | [ota](https://github.com/wjsall/tesla-fsd-controller/releases/download/v1.4.25/esp32s3_waveshare_wifi_v1.4.25_ota.bin) | In-car install + Wi-Fi bridge |
 
 ### Step 2: Flash the firmware
 
@@ -318,11 +322,11 @@ The status card updates in real time:
 After modifying and rebuilding the firmware, you can update wirelessly — no USB needed:
 
 1. Build in VS Code (click **Build**).
-2. The build script auto-generates **`firmware_esp32_ota.bin`** (or `firmware_esp32s3_waveshare_ota.bin` for Waveshare) in the project root.
+2. The build script auto-generates a matching **`<env>_v<ver>_ota.bin`** in the project root (e.g. `esp32s3_waveshare_v1.4.25_ota.bin`).
 3. In the web panel, find the **OTA Update** card, click **Choose File**, select the **`_ota.bin`** file.
 4. Click **Upload Firmware** and wait for the progress bar. The device restarts automatically.
 
-> ⚠️ **OTA requires the `_ota.bin` file.** Do not upload the merged `firmware_esp32.bin` — it contains the bootloader and will fail with "Wrong Magic Byte".
+> ⚠️ **OTA requires the `_ota.bin` file.** Do not upload the merged `<env>_v<ver>.bin` — it contains the bootloader and will fail with "Wrong Magic Byte".
 
 ---
 
