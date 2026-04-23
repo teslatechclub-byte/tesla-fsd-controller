@@ -71,17 +71,6 @@ select:focus{outline:none;border-color:#38bdf8}
 .smart-rule input[type=number]:focus{outline:none;border-color:#38bdf8}
 .smart-rule .km{color:#38bdf8;font-weight:600}
 .stat-val.red{color:#ef4444}
-.cat-row{border:1px solid #1e293b;border-radius:6px;padding:8px;margin-bottom:6px;background:#0f172a}
-.cat-head{display:flex;align-items:center;gap:8px}
-.cat-info{flex:1;min-width:0}
-.cat-title{font-size:13px;color:#cbd5e1;font-weight:600}
-.cat-count{color:#64748b;font-weight:400;font-size:11px}
-.cat-desc{color:#64748b;font-size:11px;margin-top:2px}
-.cat-btn{height:26px;padding:0 10px;background:#334155;color:#cbd5e1;border:none;border-radius:4px;font-size:11px;cursor:pointer;flex:0 0 auto}
-.cat-body{display:none;margin-top:8px}
-.cat-ta{font-family:monospace;font-size:11px}
-.cat-reset{height:24px;padding:0 10px;background:#0ea5e9;color:#e0f2fe;border:none;border-radius:4px;font-size:11px;cursor:pointer;margin-top:4px}
-.cat-switch{flex:0 0 auto}
 .hw3ct-label{font-size:11px;color:#64748b;text-align:center;margin-bottom:2px}
 .hw3ct-input{width:100%;box-sizing:border-box;padding:6px 4px;text-align:center;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:4px;font-size:13px}
 .car-link{position:fixed;bottom:14px;right:14px;background:rgba(30,41,59,.9);color:#94a3b8;border:1px solid #334155;border-radius:20px;padding:8px 14px;font-size:12px;text-decoration:none;z-index:500;backdrop-filter:blur(6px)}
@@ -446,41 +435,25 @@ select:focus{outline:none;border-color:#38bdf8}
     <div class="row"><span class="row-label">启用</span>
       <label class="switch"><input type="checkbox" id="brDnsEn" onchange="brSet()"><span class="slider"></span></label></div>
     <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:8px;margin:6px 0 8px 0;font-size:11px;color:#94a3b8;line-height:1.6">
-      <div style="color:#cbd5e1;font-weight:600;margin-bottom:4px">📋 按类别勾选 · 每类可独立编辑</div>
-      <div>• 勾选想放行/屏蔽的类别，点每行「编辑」按钮展开可修改该类域名</div>
-      <div>• 匹配规则：<span style="color:#cbd5e1">更长的规则优先</span>（tesla.cn 屏蔽 + 具体子域放行 → 子域放行、其他拦）</div>
+      <div>• 白名单 = 放行；黑名单 = 屏蔽；<span style="color:#cbd5e1">更长的规则优先</span>（tesla.cn 屏蔽 + 子域白名单 → 子域放行、其他拦）</div>
+      <div>• 空格或换行分隔；<span style="color:#cbd5e1">点下方预设一键填入</span>，也可手动增删</div>
       <div>• 手机若开启「私人 DNS (DoT)」或 DoH 会<span style="color:#f87171">绕过</span>本过滤，需在系统设置关闭</div>
-      <div style="margin-top:6px;padding-top:6px;border-top:1px dashed #334155;color:#fbbf24">• 默认域名<span style="color:#fde68a">来自网络收集</span>，仅供参考。Tesla 云域名可能因车型/区域/版本而异，可参考"最近拦截"列表自行调整。</div>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
       <button type="button" id="pstTesla" onclick="brApplyPreset('tesla_min')" style="height:28px;padding:0 10px;background:#065f46;color:#d1fae5;border:2px solid #34d399;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600">⭐ Tesla 推荐（实测）</button>
       <button type="button" id="pstLean" onclick="brApplyPreset('tesla_lean')" style="height:28px;padding:0 10px;background:#1e3a8a;color:#dbeafe;border:none;border-radius:6px;font-size:11px;cursor:pointer">🔹 精简官方</button>
       <button type="button" id="pstBl" onclick="brApplyPreset('bl_telemetry')" style="height:28px;padding:0 10px;background:#7c2d12;color:#fed7aa;border:none;border-radius:6px;font-size:11px;cursor:pointer">只屏蔽遥测</button>
-      <button type="button" id="pstClr" onclick="brApplyPreset('clear')" style="height:28px;padding:0 10px;background:#334155;color:#cbd5e1;border:none;border-radius:6px;font-size:11px;cursor:pointer">全部取消</button>
+      <button type="button" id="pstClr" onclick="brApplyPreset('clear')" style="height:28px;padding:0 10px;background:#334155;color:#cbd5e1;border:none;border-radius:6px;font-size:11px;cursor:pointer">清空所有规则</button>
     </div>
-    <div style="font-size:11px;font-weight:700;color:#34d399;letter-spacing:1px;margin:8px 0 4px 0">📥 放行（白名单）</div>
-    <div id="catAllowList"></div>
-    <div style="font-size:11px;font-weight:700;color:#f87171;letter-spacing:1px;margin:10px 0 4px 0">🚫 屏蔽（黑名单）</div>
-    <div id="catBlockList"></div>
-    <div style="margin-top:10px;padding:8px;border:1px dashed #334155;border-radius:6px;background:#0f172a">
-      <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">其他自定义域名（不在上述类别中的）</div>
-      <div style="font-size:11px;color:#64748b;margin-bottom:2px">放行：</div>
-      <textarea id="catCustomAllow" class="text-input" rows="2" style="font-family:monospace;font-size:11px" oninput="catOnChange()" placeholder="空格/换行分隔的自定义放行域名"></textarea>
-      <div style="font-size:11px;color:#64748b;margin:4px 0 2px 0">屏蔽：</div>
-      <textarea id="catCustomBlock" class="text-input" rows="2" style="font-family:monospace;font-size:11px" oninput="catOnChange()" placeholder="空格/换行分隔的自定义屏蔽域名"></textarea>
+    <div id="dnsPresetStat" style="font-size:11px;color:#94a3b8;margin:-4px 0 8px 0">当前：—</div>
+    <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px;margin-top:6px">
+      <span class="row-label" style="font-size:11px;color:#34d399">📥 白名单（放行，空格/换行分隔）</span>
+      <textarea id="brDnsAllow" class="text-input" maxlength="1023" rows="4" style="font-family:monospace;font-size:11px" placeholder="例: connman.vn.cloud.tesla.cn nav-prd-maps.tesla.cn"></textarea>
     </div>
-    <details style="margin-top:8px">
-      <summary style="cursor:pointer;color:#64748b;font-size:11px;padding:4px 0">▼ 高级 · 查看/编辑最终规则文本</summary>
-      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px;margin-top:6px">
-        <span class="row-label" style="font-size:11px">白名单合并结果（保存用）</span>
-        <textarea id="brDnsAllow" class="text-input" maxlength="1023" rows="3" style="font-family:monospace;font-size:11px"></textarea>
-      </div>
-      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px;margin-top:6px">
-        <span class="row-label" style="font-size:11px">黑名单合并结果（保存用）</span>
-        <textarea id="brDnsBlock" class="text-input" maxlength="1023" rows="3" style="font-family:monospace;font-size:11px"></textarea>
-      </div>
-      <div style="color:#64748b;font-size:10px;margin-top:4px">此处为上方类别合并后的完整文本，保存时以此为准。手改会覆盖类别选择。</div>
-    </details>
+    <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px;margin-top:6px">
+      <span class="row-label" style="font-size:11px;color:#f87171">🚫 黑名单（屏蔽，空格/换行分隔）</span>
+      <textarea id="brDnsBlock" class="text-input" maxlength="1023" rows="4" style="font-family:monospace;font-size:11px" placeholder="例: tesla.cn tesla.com"></textarea>
+    </div>
     <button class="save-btn" onclick="brSet()" style="margin-top:10px">保存 DNS 配置</button>
     <div class="row" style="margin-top:10px"><span class="row-label">IP 层拦截</span>
       <label class="switch"><input type="checkbox" id="ipBlkEn" onchange="setIpBlk()"><span class="slider"></span></label></div>
@@ -1055,14 +1028,15 @@ function brInit(){
   fetch('/api/wifi-bridge/status'+(token?'?token='+token:'')).then(function(r){
     if(!r.ok){showStaSection();return;}
     document.getElementById('cardBridge').style.display='';
-    catRenderAll();
     brPoll();
     brPollTimer=setInterval(brPoll,3000);
     __brPollEnabled=true;
     // mark dirty on any edit so polling doesn't overwrite user input
-    ['brDnsAllow','brDnsBlock','brAddSsid','brAddPass','catCustomAllow','catCustomBlock'].forEach(function(id){
+    ['brDnsAllow','brDnsBlock','brAddSsid','brAddPass'].forEach(function(id){
       var el=document.getElementById(id);
-      if(el)el.addEventListener('input',function(){brDirty=true;});
+      if(el){
+        el.addEventListener('input',function(){brDirty=true;brHighlightPreset();});
+      }
     });
   }).catch(function(){showStaSection();});
 }
@@ -1096,10 +1070,7 @@ function brPoll(){
     if(!brDirty){
       document.getElementById('brDnsAllow').value=d.dnsAllow||'';
       document.getElementById('brDnsBlock').value=d.dnsBlock||'';
-      catImportFromLists(d.dnsAllow||'', d.dnsBlock||'');
     }
-    // Highlight based on current category state so uncommitted edits show
-    // the right preset ring immediately, not just after save.
     brHighlightPreset();
     document.getElementById('brBlkTot').textContent=d.dnsBlockedTotal;
     document.getElementById('brIpDrops').textContent=(d.ipBlockDrops!=null?d.ipBlockDrops:0);
@@ -1147,152 +1118,55 @@ function brSet(){
   fetch('/api/wifi-bridge/set?'+qs+(token?'&token='+token:''))
     .then(function(r){brDirty=false;msg('brMsg',r.ok?'已保存':'保存失败',r.ok);});
 }
-var DNS_CATS=[
-  {id:'wifi_detect',type:'allow',icon:'📶',label:'Wi-Fi 连接检测',desc:'系统在线检测，关闭会被车机认定为"无网络"',
-   domains:'connman.vn.cloud.tesla.cn www.tesla.cn',defaultOn:true},
-  {id:'tesla_maps',type:'allow',icon:'🗺️',label:'Tesla 地图/导航',desc:'车机原生 Tesla 地图/导航服务',
-   domains:'nav-prd-maps.tesla.cn maps-cn-prd.go.tesla.services',defaultOn:true},
-  {id:'app_control',type:'allow',icon:'📱',label:'手机 App 控车',desc:'Tesla App 远程控车、推送、API',
-   domains:'hermes-prd.vn.cloud.tesla.cn signaling.vn.cloud.tesla.cn api-prd.vn.cloud.tesla.cn',defaultOn:true},
-  {id:'intel_voice',type:'allow',icon:'🎙️',label:'Intel 车机语音',desc:'Intel MCU 车机语音/娱乐流',
-   domains:'media-server-me.tesla.cn',defaultOn:true},
-  {id:'amd_voice',type:'allow',icon:'🗣️',label:'AMD 车机语音',desc:'AMD MCU 字节火山引擎语音（volcengine/volces）',
-   domains:'volcengine.com volces.com volcengineapi.com volccdn.com',defaultOn:true},
-  {id:'baidu_maps',type:'allow',icon:'🧭',label:'百度地图/导航',desc:'车机内置百度地图瓦片/路径（*.map.baidu.com + *.bdimg.com + *.bcebos.com）',
-   domains:'api.map.baidu.com lc.map.baidu.com newvector.map.baidu.com route.map.baidu.com newclient.map.baidu.com tracknavi.baidu.com itsmap3.baidu.com app.navi.baidu.com mapapip0.bdimg.com mapapisp0.bdimg.com automap0.bdimg.com baidunavi.cdn.bcebos.com lbsnavi.cdn.bcebos.com enlargeroad-view.su.bcebos.com',defaultOn:true},
-  {id:'block_root',type:'block',icon:'🚫',label:'屏蔽 Tesla 根域',desc:'覆盖 *.tesla.cn / *.tesla.com / *.tesla.services（上方放行子域仍生效）',
-   domains:'tesla.cn tesla.com teslamotors.com tesla.services',defaultOn:true},
-  {id:'block_stream',type:'block',icon:'📡',label:'屏蔽车辆数据流',desc:'拦 hermes-stream-prd 遥测上报流（风险：可能影响部分推送/远程指令）',
-   domains:'hermes-stream-prd.vn.cloud.tesla.cn',defaultOn:false},
-  {id:'block_logs',type:'block',icon:'📄',label:'屏蔽车辆日志上传',desc:'vehicle-files 故障/日志/黑匣子文件',
-   domains:'vehicle-files.prd.cnn1.vn.cloud.tesla.cn vehicle-files.prd.cn1.vn.cloud.tesla.cn',defaultOn:false},
-  {id:'block_ota',type:'block',icon:'⛔',label:'屏蔽 OTA 固件下载',desc:'拦 firmware.tesla.cn，阻止 OTA 推送升级',
-   domains:'firmware.tesla.cn',defaultOn:false}
-];
-var PRESET_PROFILES={
-  tesla_min:{name:'⭐ Tesla 推荐（实测）',btnId:'pstTesla',
-    cats:['wifi_detect','tesla_maps','app_control','intel_voice','amd_voice','baidu_maps','block_root'],
-    note:'仅放行核心子域 + 屏蔽 Tesla 根域。实测 2 天 App/导航/语音/Wi-Fi 正常。'},
-  tesla_lean:{name:'🔹 精简官方（仅 Intel，无百度/AMD 语音）',btnId:'pstLean',
-    cats:['wifi_detect','tesla_maps','app_control','intel_voice','block_root'],
-    note:'只放行 Tesla 官方必要子域。不含 AMD 语音 / 百度地图（车机内置地图会不可用）。'},
-  bl_telemetry:{name:'只屏蔽遥测（中风险）',btnId:'pstBl',
-    cats:['block_stream','block_logs','block_ota'],
-    note:'只启用 3 类屏蔽（遥测流 / 日志上传 / OTA 固件），不设白名单。屏蔽 firmware 会阻止 OTA。'},
-  clear:{name:'全部取消',btnId:'pstClr',cats:[],note:'取消所有类别勾选。'}
+var DNS_PRESETS={
+  tesla_min:{
+    name:'⭐ Tesla 推荐（实测）',btnId:'pstTesla',
+    allow:'connman.vn.cloud.tesla.cn www.tesla.cn nav-prd-maps.tesla.cn maps-cn-prd.go.tesla.services hermes-prd.vn.cloud.tesla.cn signaling.vn.cloud.tesla.cn api-prd.vn.cloud.tesla.cn media-server-me.tesla.cn volcengine.com volces.com volcengineapi.com volccdn.com api.map.baidu.com lc.map.baidu.com newvector.map.baidu.com route.map.baidu.com newclient.map.baidu.com tracknavi.baidu.com itsmap3.baidu.com app.navi.baidu.com mapapip0.bdimg.com mapapisp0.bdimg.com automap0.bdimg.com baidunavi.cdn.bcebos.com lbsnavi.cdn.bcebos.com enlargeroad-view.su.bcebos.com',
+    block:'tesla.cn tesla.com teslamotors.com tesla.services'
+  },
+  tesla_lean:{
+    name:'🔹 精简官方',btnId:'pstLean',
+    allow:'connman.vn.cloud.tesla.cn www.tesla.cn nav-prd-maps.tesla.cn maps-cn-prd.go.tesla.services hermes-prd.vn.cloud.tesla.cn signaling.vn.cloud.tesla.cn api-prd.vn.cloud.tesla.cn media-server-me.tesla.cn',
+    block:'tesla.cn tesla.com teslamotors.com tesla.services'
+  },
+  bl_telemetry:{
+    name:'只屏蔽遥测',btnId:'pstBl',
+    allow:'',
+    block:'hermes-stream-prd.vn.cloud.tesla.cn vehicle-files.prd.cnn1.vn.cloud.tesla.cn vehicle-files.prd.cn1.vn.cloud.tesla.cn firmware.tesla.cn'
+  },
+  clear:{name:'清空所有规则',btnId:'pstClr',allow:'',block:''}
 };
-function catTokens(s){return String(s||'').trim().split(/[\s,;]+/).filter(Boolean);}
-function catNormSet(s){
-  var m={}; catTokens(s).forEach(function(d){m[d.toLowerCase()]=1;}); return m;
-}
-function catEach(fn){
-  DNS_CATS.forEach(function(c){
-    fn(c, document.getElementById('cat_'+c.id), document.getElementById('catTa_'+c.id));
-  });
-}
-function catRenderRow(c){
-  var count=catTokens(c.domains).length;
-  return '<div class="cat-row"><div class="cat-head">'+
-    '<label class="switch cat-switch"><input type="checkbox" id="cat_'+c.id+'" '+(c.defaultOn?'checked':'')+' onchange="catOnChange()"><span class="slider"></span></label>'+
-    '<div class="cat-info">'+
-      '<div class="cat-title">'+c.icon+' '+c.label+' <span class="cat-count">· '+count+' 个</span></div>'+
-    '</div>'+
-    '<button type="button" class="cat-btn" id="btnEdit_'+c.id+'" onclick="catToggle(\''+c.id+'\')">编辑 ▼</button>'+
-    '</div>'+
-    '<div class="cat-body" id="catBody_'+c.id+'">'+
-      '<div class="cat-desc">'+c.desc+'</div>'+
-      '<textarea id="catTa_'+c.id+'" class="text-input cat-ta" rows="2" oninput="catOnChange()">'+c.domains+'</textarea>'+
-      '<div><button type="button" class="cat-reset" onclick="catReset(\''+c.id+'\')">↺ 恢复默认域名</button></div>'+
-    '</div></div>';
-}
-function catRenderAll(){
-  var a='',b='';
-  for(var i=0;i<DNS_CATS.length;i++){
-    var c=DNS_CATS[i];
-    if(c.type==='allow') a+=catRenderRow(c); else b+=catRenderRow(c);
+function dnsNormList(s){return String(s||'').trim().split(/\s+/).filter(Boolean).sort().join(' ');}
+function detectActivePreset(allow,block){
+  var a=dnsNormList(allow),b=dnsNormList(block);
+  for(var k in DNS_PRESETS){
+    if(dnsNormList(DNS_PRESETS[k].allow)===a && dnsNormList(DNS_PRESETS[k].block)===b) return k;
   }
-  var la=document.getElementById('catAllowList'); if(la) la.innerHTML=a;
-  var lb=document.getElementById('catBlockList'); if(lb) lb.innerHTML=b;
-}
-function catToggle(id){
-  var b=document.getElementById('catBody_'+id), btn=document.getElementById('btnEdit_'+id);
-  if(!b)return;
-  if(b.style.display==='none'||!b.style.display){b.style.display='block';btn.textContent='收起 ▲';}
-  else{b.style.display='none';btn.textContent='编辑 ▼';}
-}
-function catById(id){
-  for(var i=0;i<DNS_CATS.length;i++) if(DNS_CATS[i].id===id) return DNS_CATS[i];
   return null;
 }
-function catReset(id){
-  var c=catById(id);if(!c)return;
-  var ta=document.getElementById('catTa_'+id); if(ta) ta.value=c.domains;
-  var cb=document.getElementById('cat_'+id); if(cb) cb.checked=c.defaultOn;
-  catOnChange();
-}
-function catRebuildLists(){
-  var allow={},block={};
-  catEach(function(c,cb,ta){
-    if(!cb||!cb.checked) return;
-    var src=(ta&&ta.value)?ta.value:c.domains;
-    var bucket=(c.type==='allow')?allow:block;
-    catTokens(src).forEach(function(d){bucket[d.toLowerCase()]=1;});
-  });
-  var exA=document.getElementById('catCustomAllow'),exB=document.getElementById('catCustomBlock');
-  if(exA) catTokens(exA.value).forEach(function(d){allow[d.toLowerCase()]=1;});
-  if(exB) catTokens(exB.value).forEach(function(d){block[d.toLowerCase()]=1;});
-  document.getElementById('brDnsAllow').value=Object.keys(allow).join(' ');
-  document.getElementById('brDnsBlock').value=Object.keys(block).join(' ');
-}
-function catOnChange(){
-  catRebuildLists();
-  brDirty=true;
-  msg('brMsg','已修改，点「保存 DNS 配置」生效',true);
-}
-function catImportFromLists(allowStr,blockStr){
-  var allow=catNormSet(allowStr),block=catNormSet(blockStr);
-  var matchedAllow={},matchedBlock={};
-  catEach(function(c,cb,ta){
-    var bucket=(c.type==='allow')?allow:block;
-    var matched=(c.type==='allow')?matchedAllow:matchedBlock;
-    var defs=catTokens(c.domains);
-    var allPresent=defs.length>0 && defs.every(function(d){return bucket[d.toLowerCase()];});
-    if(cb) cb.checked=allPresent;
-    if(ta && ta.value!==c.domains) ta.value=c.domains;
-    if(allPresent) defs.forEach(function(d){matched[d.toLowerCase()]=1;});
-  });
-  var leftA=Object.keys(allow).filter(function(d){return !matchedAllow[d];});
-  var leftB=Object.keys(block).filter(function(d){return !matchedBlock[d];});
-  var exA=document.getElementById('catCustomAllow'),exB=document.getElementById('catCustomBlock');
-  if(exA) exA.value=leftA.join(' ');
-  if(exB) exB.value=leftB.join(' ');
-}
 function brHighlightPreset(){
-  var active=null;
-  for(var k in PRESET_PROFILES){
-    var want={}; PRESET_PROFILES[k].cats.forEach(function(id){want[id]=1;});
-    var ok=true;
-    catEach(function(c,cb){
-      if(!ok) return;
-      if(!!want[c.id] !== (cb?cb.checked:false)) ok=false;
-    });
-    if(ok){active=k;break;}
+  var allow=document.getElementById('brDnsAllow').value;
+  var block=document.getElementById('brDnsBlock').value;
+  var active=detectActivePreset(allow,block);
+  for(var k in DNS_PRESETS){
+    var el=document.getElementById(DNS_PRESETS[k].btnId);
+    if(el) el.style.boxShadow=(k===active)?'0 0 0 3px #fbbf24':'none';
   }
-  for(var pk in PRESET_PROFILES){
-    var el=document.getElementById(PRESET_PROFILES[pk].btnId);
-    if(el) el.style.boxShadow=(pk===active)?'0 0 0 3px #fbbf24':'none';
+  var stat=document.getElementById('dnsPresetStat');
+  if(!stat) return;
+  if(active){
+    stat.innerHTML='当前：<span style="color:#34d399">'+DNS_PRESETS[active].name+'</span>';
+  } else {
+    var aw=String(allow||'').trim().split(/\s+/).filter(Boolean).length;
+    var bk=String(block||'').trim().split(/\s+/).filter(Boolean).length;
+    stat.innerHTML='当前：<span style="color:#fbbf24">✍️ 自定义</span>（白名单 '+aw+' · 黑名单 '+bk+'）';
   }
 }
 function brApplyPreset(key){
-  var p=PRESET_PROFILES[key];if(!p)return;
-  if(!confirm('应用预设「'+p.name+'」？\n\n'+p.note+'\n\n⚠ 默认域名来自网络收集，仅供参考。\n应用后会覆盖当前类别勾选（自定义域名文本框会保留）。')){return;}
-  var want={}; p.cats.forEach(function(id){want[id]=1;});
-  catEach(function(c,cb,ta){
-    if(cb) cb.checked=!!want[c.id];
-    if(ta) ta.value=c.domains;
-  });
+  var p=DNS_PRESETS[key];if(!p)return;
+  document.getElementById('brDnsAllow').value=p.allow;
+  document.getElementById('brDnsBlock').value=p.block;
   if(key!=='clear'){document.getElementById('brDnsEn').checked=true;}
-  catRebuildLists();
   brDirty=true;
   brHighlightPreset();
   msg('brMsg','已载入「'+p.name+'」，点「保存 DNS 配置」生效',true);
