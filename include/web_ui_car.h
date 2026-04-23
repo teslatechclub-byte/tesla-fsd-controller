@@ -589,9 +589,9 @@ button{font-family:inherit;cursor:pointer}
       </div>
       <div class="panel" id="panelIpStats">
         <div class="ptitle">IP 拦截缓存</div>
-        <div class="ptile-row" style="margin-bottom:10px">
-          <div class="ptile-label">IP 层拦截开关</div>
-          <div class="pill-group" id="grpIpBlk">
+        <div class="row" style="margin-bottom:10px">
+          <div class="rlbl">IP 层拦截开关</div>
+          <div class="bgroup" id="grpIpBlk">
             <button class="pill" data-v="0" onclick="setIpBlk(0)">关</button>
             <button class="pill" data-v="1" onclick="setIpBlk(1)">开</button>
           </div>
