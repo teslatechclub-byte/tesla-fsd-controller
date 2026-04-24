@@ -118,7 +118,7 @@ Closed-source FSD activation modules sell for around ¥500. Here's the full comp
 
 | Component | Notes | Approx. Cost |
 |-----------|-------|--------------|
-| **Waveshare ESP32-S3-RS485-CAN** | [Taobao link](https://m.tb.cn/h.ikuhpPd) — integrated CAN transceiver, DIN rail enclosure, 7–36V wide-voltage input | ~$14 |
+| **Waveshare ESP32-S3-RS485-CAN** | [Taobao link](https://m.tb.cn/h.iGU3p56) — integrated CAN transceiver, DIN rail enclosure, 7–36V wide-voltage input | ~$14 |
 | Type-C USB cable | For flashing or USB-C in-car power | Usually on hand |
 
 > **Why this board?** Two power options: **connect directly to car 12V** (7–36V wide-voltage terminal, no buck converter needed) or **power via USB-C**. CAN transceiver built-in (TJA1051T), screw terminal connections (no Dupont wires), DIN rail enclosure for hidden in-car mounting. 120Ω termination resistor is NC by default — no action needed.
