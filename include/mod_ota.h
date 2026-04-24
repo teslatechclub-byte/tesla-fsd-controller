@@ -151,66 +151,88 @@ static bool otaParseLatest(const String& body) {
     return true;
 }
 
-static bool otaCheckLatest() {
-    if (WiFi.status() != WL_CONNECTED) {
-        otaSetMsg(OTA_ERROR, "STA 未连接,无法联网检查更新");
-        return false;
-    }
-    gOta.state = OTA_CHECKING;
+// Mirror list tried in order for both API-check and asset download.
+// All of these accept the "<mirror>/<origin-url>" convention (prefix style),
+// so the same helper serves both api.github.com and github.com URLs.
+// Direct origin is always tried last as a final fallback.
+static constexpr const char* kOtaMirrors[] = {
+    "https://gh-proxy.com",
+    "https://ghfast.top",
+    "https://mirror.ghproxy.com",
+};
+static constexpr size_t kOtaMirrorCount = sizeof(kOtaMirrors) / sizeof(kOtaMirrors[0]);
+
+// Return a short host-only label for UI messages (e.g. "gh-proxy.com").
+static const char* otaMirrorLabel(const char* mirror) {
+    const char* p = strstr(mirror, "://");
+    return p ? p + 3 : mirror;
+}
+
+// Build "<mirror>/<origin>" with exactly one slash between.
+static String otaWithMirror(const char* mirror, const String& origin) {
+    String m(mirror);
+    while (m.endsWith("/")) m.remove(m.length() - 1);
+    if (m.isEmpty()) return origin;
+    return m + "/" + origin;
+}
+
+// Perform one GitHub API GET against `url`. Populates gOtaBody on success.
+// Returns true iff err == ESP_OK && status == 200.
+static bool otaApiGet(const String& url) {
     gOtaBody = String();
     gOtaBody.reserve(8192);
 
-    String url = String("https://api.github.com/repos/")
-               + OTA_RELEASE_OWNER + "/" + OTA_RELEASE_REPO + "/releases/latest";
-
     esp_http_client_config_t cfg = {};
     cfg.url                        = url.c_str();
-    cfg.timeout_ms                 = 15000;
+    cfg.timeout_ms                 = 8000;  // short per-attempt so slow nodes fail fast
     cfg.transport_type             = HTTP_TRANSPORT_OVER_SSL;
     cfg.crt_bundle_attach          = OTA_CRT_BUNDLE_ATTACH;
     cfg.event_handler              = otaHttpEvent;
     cfg.disable_auto_redirect      = false;
-    cfg.max_redirection_count      = 3;
+    cfg.max_redirection_count      = 5;
+    cfg.buffer_size                = 4096;
 
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
-    if (!client) { otaSetMsg(OTA_ERROR, "HTTP init 失败"); return false; }
+    if (!client) return false;
     esp_http_client_set_header(client, "User-Agent", "tesla-can-web-2/" FIRMWARE_VERSION);
     esp_http_client_set_header(client, "Accept", "application/vnd.github+json");
 
     esp_err_t err = esp_http_client_perform(client);
     int status = esp_http_client_get_status_code(client);
     esp_http_client_cleanup(client);
-
-    if (err != ESP_OK) {
-        otaSetMsg(OTA_ERROR, "HTTP 错误 %d", (int)err);
-        gOtaBody = String();
-        return false;
-    }
-    if (status != 200) {
-        otaSetMsg(OTA_ERROR, "GitHub API %d", status);
-        gOtaBody = String();
-        return false;
-    }
-    bool ok = otaParseLatest(gOtaBody);
-    gOtaBody = String();
-    return ok;
+    return err == ESP_OK && status == 200;
 }
 
-// Hardcoded mirror prefix for the GitHub Releases download URL.
-// gh-proxy.com has been reliable long-term (multi-node CF/HK/Fastly/EdgeOne
-// with auto-failover). If it ever dies, otaDoPull falls back to direct GitHub.
-static constexpr const char* kOtaMirrorPrefix = "https://gh-proxy.com/";
+static bool otaCheckLatest() {
+    if (WiFi.status() != WL_CONNECTED) {
+        otaSetMsg(OTA_ERROR, "STA 未连接,无法联网检查更新");
+        return false;
+    }
+    gOta.state = OTA_CHECKING;
 
-// Build a mirrored URL: "<mirror><origin>" with exactly one slash between.
-// Returns empty String if the origin is not a github.com URL we want to mirror.
-static String otaApplyMirror(const char* mirror, const char* origin) {
-    if (!mirror || !*mirror || !origin || !*origin) return String();
-    String o(origin);
-    if (!o.startsWith("https://github.com/")) return String();
-    String m(mirror);
-    while (m.endsWith("/")) m.remove(m.length() - 1);
-    if (m.isEmpty()) return String();
-    return m + "/" + o;
+    String origin = String("https://api.github.com/repos/")
+                  + OTA_RELEASE_OWNER + "/" + OTA_RELEASE_REPO + "/releases/latest";
+
+    // Try each mirror in order, then direct as last resort.
+    for (size_t i = 0; i <= kOtaMirrorCount; ++i) {
+        String url;
+        if (i < kOtaMirrorCount) {
+            url = otaWithMirror(kOtaMirrors[i], origin);
+            snprintf(gOta.message, sizeof(gOta.message), "检查更新 (%s)…", otaMirrorLabel(kOtaMirrors[i]));
+        } else {
+            url = origin;
+            snprintf(gOta.message, sizeof(gOta.message), "检查更新 (直连 github)…");
+        }
+        if (otaApiGet(url)) {
+            bool ok = otaParseLatest(gOtaBody);
+            gOtaBody = String();
+            return ok;  // parse success or terminal parse error — don't re-try mirrors
+        }
+        gOtaBody = String();
+    }
+
+    otaSetMsg(OTA_ERROR, "所有节点均失败");
+    return false;
 }
 
 // Single download attempt. Returns ESP_OK on full-image success, else error.
@@ -271,33 +293,33 @@ static void otaDoPull(const char* url) {
         otaSetMsg(OTA_ERROR, "STA 未连接,无法下载");
         return;
     }
-    snprintf(gOta.message, sizeof(gOta.message), "开始下载…");
 
-    // Try mirror first, fall back to direct github.com on failure.
-    // Keeps OTA functional both when GitHub is slow (mirror helps) AND when the
-    // mirror has died (direct still works).
-    String mirroredUrl = otaApplyMirror(kOtaMirrorPrefix, url);
+    String origin(url);
+    // Only github.com asset URLs can be mirrored; non-github URLs go direct only.
+    bool mirrorable = origin.startsWith("https://github.com/");
+    size_t tries = mirrorable ? (kOtaMirrorCount + 1) : 1;
+
     esp_err_t err = ESP_FAIL;
-
-    if (!mirroredUrl.isEmpty()) {
-        snprintf(gOta.message, sizeof(gOta.message), "通过镜像下载…");
-        err = otaTryDownload(mirroredUrl.c_str());
-        if (err == ESP_OK) goto done;
-        // Mirror failed — try direct.
-        snprintf(gOta.message, sizeof(gOta.message), "镜像失败,直连 GitHub…");
+    for (size_t i = 0; i < tries; ++i) {
+        String attempt;
+        if (mirrorable && i < kOtaMirrorCount) {
+            attempt = otaWithMirror(kOtaMirrors[i], origin);
+            snprintf(gOta.message, sizeof(gOta.message), "下载中 (%s)…", otaMirrorLabel(kOtaMirrors[i]));
+        } else {
+            attempt = origin;
+            snprintf(gOta.message, sizeof(gOta.message), "下载中 (直连 github)…");
+        }
+        err = otaTryDownload(attempt.c_str());
+        if (err == ESP_OK) {
+            gOta.written = gOta.total;
+            otaSetMsg(OTA_SUCCESS, "更新成功,即将重启");
+            saveRestartReason("ota pull success");
+            otaPendingRestart = true;
+            return;
+        }
     }
 
-    err = otaTryDownload(url);
-
-done:
-    if (err != ESP_OK) {
-        otaSetMsg(OTA_ERROR, "下载失败 (%d)", (int)err);
-        return;
-    }
-    gOta.written = gOta.total;
-    otaSetMsg(OTA_SUCCESS, "更新成功,即将重启");
-    saveRestartReason("ota pull success");
-    otaPendingRestart = true;
+    otaSetMsg(OTA_ERROR, "下载失败 (%d)", (int)err);
 }
 
 struct OtaTaskArgs { uint8_t op; char url[260]; };

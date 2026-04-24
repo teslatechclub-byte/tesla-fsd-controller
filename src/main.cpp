@@ -1778,6 +1778,19 @@ void loop() {
     // clicked "检查更新".
     if (!otaIsActive()) {
         serviceThermalStatus();
+        // Sync Wi-Fi PS mode with thermal state.
+        // PS_NONE keeps the radio fully awake — 3-4× STA downlink throughput and
+        // removes the 50-300 ms DTIM-sync jitter on small requests. Only applied
+        // on bridge builds where the user's actually pushing traffic through STA.
+        // Thermal fallback: when the chip averages ≥82 °C (ThermalLevel::Throttled),
+        // we revert to MIN_MODEM so the radio duty cycle can drop and the chip
+        // can cool down. Hysteresis lives in mod_thermal.h — no action thrash.
+        static wifi_ps_type_t sPsMode = WIFI_PS_MIN_MODEM;  // ESP-IDF boot default
+        wifi_ps_type_t desiredPs = thermalThrottleActive() ? WIFI_PS_MIN_MODEM : WIFI_PS_NONE;
+        if (desiredPs != sPsMode) {
+            esp_wifi_set_ps(desiredPs);
+            sPsMode = desiredPs;
+        }
         serviceUpstreamWiFi(apSSID);
         dnsIpPolicyService(
             gDnsFilterCfg.allowlist,
