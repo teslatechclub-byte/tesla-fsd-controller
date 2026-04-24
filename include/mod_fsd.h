@@ -229,7 +229,6 @@ static void handleHW3(CanFrame& frame, CanDriver& driver) {
         }
         if (index == 1 && cfg.fsdTriggered && cfg.fsdEnable) {
             setBit(frame, 19, false);
-            setBit(frame, 49, false);  // UI_enableVisionSpeedControl = off
             driver.send(frame);  // nag suppression only, not counted as FSD modification
         }
         if (index == 2 && cfg.fsdTriggered && cfg.fsdEnable) {
@@ -375,10 +374,8 @@ static void handleHW4(CanFrame& frame, CanDriver& driver) {
         if (index == 1 && cfg.fsdTriggered && cfg.fsdEnable) {
             // bit19=false: nag suppression (same as HW3)
             // bit47=true:  HW4-specific FSD ready signal; counted as modification (unlike HW3 nag-only)
-            // bit49=false: UI_enableVisionSpeedControl = off
             setBit(frame, 19, false);
             setBit(frame, 47, true);
-            setBit(frame, 49, false);
             if (driver.send(frame)) cfg.modifiedCount++;
             else                    cfg.errorCount++;
         }
