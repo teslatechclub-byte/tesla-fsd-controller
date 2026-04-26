@@ -1177,7 +1177,7 @@ var DNS_PRESETS={
   bl_telemetry:{
     name:'只屏蔽遥测',btnId:'pstBl',
     allow:'',
-    block:'hermes-stream-prd.vn.cloud.tesla.cn vehicle-files.prd.cnn1.vn.cloud.tesla.cn vehicle-files.prd.cn1.vn.cloud.tesla.cn firmware.tesla.cn'
+    block:'apigateway-x2-trigger.tesla.cn telemetry-prd.vn.cloud.tesla.cn hermes-stream-prd.vn.cloud.tesla.cn'
   },
   clear:{name:'清空所有规则',btnId:'pstClr',allow:'',block:''}
 };

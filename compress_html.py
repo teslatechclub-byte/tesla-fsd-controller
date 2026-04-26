@@ -17,6 +17,7 @@ HTML_SOURCES = [
     ("include/web_ui.h",      "INDEX_HTML", "rawliteral"),
     ("include/web_ui_dash.h", "DASH_HTML",  "dash"),
     ("include/web_perf.h",    "PERF_HTML",  "rawliteral"),
+    ("include/web_perf_share.h", "PERF_SHARE_HTML", "rawliteral"),
     ("include/web_ui_car.h",  "CAR_HTML",   "rawliteral"),
 ]
 

@@ -976,8 +976,16 @@ function render(d){
   // 顶栏
   setStat('hsCAN', d.canOK, 'CAN ' + (d.canOK?'已连接':'断开'));
   setStat('hsWifi', d.staOK, 'Wi-Fi ' + (d.staOK ? (d.staIP||'OK') : '仅热点'));
-  var tempC = d.tempSeen ? Math.round(d.tempInRaw*0.25) : null;
-  document.getElementById('hsTempTxt').textContent = tempC!==null ? tempC+'°C' : '--';
+  // 顶栏温度显示芯片温度（所有固件都有）；车内温度在仪表盘 chips 行单独展示
+  var hsTempEl = document.getElementById('hsTempTxt');
+  if(d.chipTempC!==null && d.chipTempC!==undefined){
+    hsTempEl.textContent = d.chipTempC.toFixed(0)+'°C';
+    var lvl = d.thermalLevel||0;
+    hsTempEl.style.color = lvl===0?'':(lvl===1?'#fbbf24':lvl===2?'#fb923c':'#ef4444');
+  } else {
+    hsTempEl.textContent = '--';
+    hsTempEl.style.color = '';
+  }
   document.getElementById('hsHeapTxt').textContent = Math.round(d.freeHeap/1024)+'KB';
 
   // ── 仪表盘 ──
@@ -1692,7 +1700,7 @@ var DNS_PRESETS = {
     allow: 'connman.vn.cloud.tesla.cn www.tesla.cn nav-prd-maps.tesla.cn maps-cn-prd.go.tesla.services hermes-prd.vn.cloud.tesla.cn signaling.vn.cloud.tesla.cn hermes-stream-prd.vn.cloud.tesla.cn api-prd.vn.cloud.tesla.cn media-server-me.tesla.cn',
     block: 'tesla.cn tesla.com tesla.services'
   },
-  bl_telemetry: { allow:'', block:'hermes-stream-prd.vn.cloud.tesla.cn vehicle-files.prd.cnn1.vn.cloud.tesla.cn vehicle-files.prd.cn1.vn.cloud.tesla.cn firmware.tesla.cn' },
+  bl_telemetry: { allow:'', block:'apigateway-x2-trigger.tesla.cn telemetry-prd.vn.cloud.tesla.cn hermes-stream-prd.vn.cloud.tesla.cn' },
   clear: { allow:'', block:'' }
 };
 var PRESET_IDS = { tesla_min:'pstTesla', tesla_lean:'pstLean', bl_telemetry:'pstBl', clear:'pstClr' };

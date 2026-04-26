@@ -170,6 +170,7 @@ struct FSDConfig {
     volatile uint32_t perfAccelMs         = 0;   // result ms
     volatile uint32_t perfBrakeMs         = 0;   // result ms
     volatile uint8_t  perfBrakeEntryKph   = 0;   // actual speed (kph) when braking started
+    char              perfModel[33]       = {};  // user-set vehicle name shown on share card (UTF-8, ≤32 bytes)
 
     // Statistics
     volatile uint32_t rxCount             = 0;

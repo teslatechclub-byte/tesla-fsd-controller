@@ -132,6 +132,7 @@ static bool checkToken(AsyncWebServerRequest* req) {
 #define NV_IP_BLK    "de"   // bool: ipBlockerEnabled (v1.4.29, default false — hot-path fast path)
 #define NV_ISA_OVR   "df"   // bool: isaOverride (v1.4.28, default false — HW4 ISA nav-limit clamp bypass)
 #define NV_TLSSC_BP  "e0"   // bool: tlsscBypass (v1.4.32, default false — 0x3FD mux 0 bit 38 alongside FSD activation)
+#define NV_PERF_MOD  "e1"   // string: perfModel (v1.4.33, free text on perf share card, ≤32 bytes)
 
 // ═══════════════════════════════════════════
 //  Config persistence (NVS)
@@ -250,6 +251,7 @@ void loadConfig() {
             memcpy(const_cast<uint8_t*>(cfg.hw3CustomTarget), buf, sizeof(buf));
         }
     }
+    strlcpy(cfg.perfModel, prefs.getString(NV_PERF_MOD, "").c_str(), sizeof(cfg.perfModel));
     strlcpy(apSSID,  prefs.getString(NV_AP_SSID,  "FSD-Controller").c_str(), sizeof(apSSID));
     strlcpy(apPass,  prefs.getString(NV_AP_PASS,  "12345678").c_str(),       sizeof(apPass));
     strlcpy(staSSID, prefs.getString(NV_STA_SSID, "").c_str(),               sizeof(staSSID));
@@ -299,6 +301,7 @@ void saveConfig() {
     prefs.putBool(NV_IP_BLK,    cfg.ipBlockerEnabled);
     prefs.putBool(NV_ISA_OVR,   cfg.isaOverride);
     prefs.putBool(NV_TLSSC_BP,  cfg.tlsscBypass);
+    prefs.putString(NV_PERF_MOD, cfg.perfModel);
     // WiFi keys written directly by /api/wifi — not touched here.
     prefs.end();
 }
@@ -469,6 +472,15 @@ void setupWebServer() {
         req->send(r);
     });
 
+    // Performance share card — token-free static page, params in query string.
+    // Visit /perf-share?type=accel&ms=4320&hw=hw3&model=Model+Y+Performance&t=...
+    server.on("/perf-share", HTTP_GET, [](AsyncWebServerRequest* req) {
+        auto* r = req->beginResponse(200, "text/html", PERF_SHARE_HTML_GZ, PERF_SHARE_HTML_GZ_LEN);
+        r->addHeader("Content-Encoding", "gzip");
+        r->addHeader("Cache-Control", "public, max-age=300");
+        req->send(r);
+    });
+
     server.on("/manifest.json", HTTP_GET, [](AsyncWebServerRequest* req) {
         req->send(200, "application/manifest+json",
             "{\"name\":\"\xE7\x89\xB9\xE6\x96\xAF\xE6\x8B\x89\xE6\x8E\xA7\xE5\x88\xB6\xE5\x99\xA8\",\"short_name\":\"\xE6\x8E\xA7\xE5\x88\xB6\xE5\x99\xA8\","
@@ -489,6 +501,35 @@ void setupWebServer() {
             else if (cmd == "reset_brake"){ cfg.perfBrakeState = 0; cfg.perfBrakeMs = 0; }
             else if (cmd == "reset")  { cfg.perfAccelState = 0; cfg.perfAccelMs = 0;
                                         cfg.perfBrakeState = 0; cfg.perfBrakeMs = 0; }
+            else if (cmd == "set_model" && req->hasParam("v")) {
+                // Trim and copy user-provided model name (≤32 bytes, drop control chars).
+                String v = req->getParam("v")->value();
+                v.trim();
+                char clean[33] = {};
+                size_t n = 0;
+                for (size_t i = 0; i < v.length() && n + 1 < sizeof(clean); ++i) {
+                    uint8_t c = (uint8_t)v[i];
+                    if (c < 0x20 || c == 0x7F) continue;
+                    clean[n++] = (char)c;
+                }
+                // UTF-8-safe truncation: drop a partial trailing multi-byte sequence
+                // so we don't store dangling continuation bytes that render as U+FFFD.
+                if (n > 0) {
+                    size_t i = n;
+                    while (i > 0 && (((uint8_t)clean[i - 1]) & 0xC0) == 0x80) i--;
+                    if (i > 0 && (((uint8_t)clean[i - 1]) & 0x80) != 0) {
+                        uint8_t lead = (uint8_t)clean[i - 1];
+                        size_t expected =
+                            (lead & 0xE0) == 0xC0 ? 2 :
+                            (lead & 0xF0) == 0xE0 ? 3 :
+                            (lead & 0xF8) == 0xF0 ? 4 : 1;
+                        if (n - (i - 1) < expected) n = i - 1;
+                    }
+                }
+                clean[n] = 0;
+                strlcpy(cfg.perfModel, clean, sizeof(cfg.perfModel));
+                saveConfig();
+            }
         }
         req->send(200, "application/json", "{\"ok\":true}");
     });
@@ -510,8 +551,10 @@ void setupWebServer() {
         };
         char escapedAp[128] = {};
         char escapedSta[128] = {};
+        char escapedPerfModel[80] = {};
         jsonEsc(apSSID,  escapedAp,  sizeof(escapedAp));
         jsonEsc(staSSID, escapedSta, sizeof(escapedSta));
+        jsonEsc(cfg.perfModel, escapedPerfModel, sizeof(escapedPerfModel));
 
         // Chip temp values: serialise NaN as JSON null so the front-end can
         // hide the badge while waiting for the first sample (boot has no data).
@@ -552,7 +595,7 @@ void setupWebServer() {
             "\"sideCol\":%u,\"laneWarn\":%u,\"laneChg\":%u,"
             "\"autosteer\":%s,\"aeb\":%s,\"fcwOn\":%s,"
             "\"apRestart\":%s,\"hw4Offset\":%u,\"trackMode\":%d,"
-            "\"perfAccel\":%u,\"perfBrake\":%u,\"perfAccelMs\":%u,\"perfBrakeMs\":%u,\"brakeEntryKph\":%u,"
+            "\"perfAccel\":%u,\"perfBrake\":%u,\"perfAccelMs\":%u,\"perfBrakeMs\":%u,\"brakeEntryKph\":%u,\"perfModel\":\"%s\","
             "\"apSSID\":\"%s\",\"staSSID\":\"%s\",\"staIP\":\"%s\",\"staOK\":%s,"
             "\"chipTempC\":%s,\"chipTempAvgC\":%s,\"chipTempPeakC\":%s,"
             "\"thermalLevel\":%u,\"thermalStatus\":\"%s\",\"thermalProtect\":%s,"
@@ -633,6 +676,7 @@ void setupWebServer() {
             (unsigned)cfg.perfAccelState, (unsigned)cfg.perfBrakeState,
             (unsigned)cfg.perfAccelMs,    (unsigned)cfg.perfBrakeMs,
             (unsigned)cfg.perfBrakeEntryKph,
+            escapedPerfModel,
             escapedAp,
             escapedSta,
             (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString().c_str() : "",
