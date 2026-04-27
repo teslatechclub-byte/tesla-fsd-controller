@@ -109,7 +109,7 @@ static inline uint8_t encodeHW3OffsetFromPct(int pct, int fusedLimitKph) {
 
 // ── CAN ID filter tables (used by handleMessage) ──────────────────────────
 static constexpr uint32_t LEGACY_IDS[] = {69, 760, 1006, 1080};
-static constexpr uint32_t HW3_IDS[]    = {787, 1016, 1021};
+static constexpr uint32_t HW3_IDS[]    = {1016, 1021};
 static constexpr uint32_t HW4_IDS[]    = {921, 1016, 1021};
 
 inline const uint32_t* getFilterIds() {
@@ -122,7 +122,7 @@ inline const uint32_t* getFilterIds() {
 inline uint8_t getFilterIdCount() {
     switch (cfg.hwMode) {
         case 0:  return 4;
-        case 1:  return 3;
+        case 1:  return 2;
         default: return 3;
     }
 }
@@ -186,18 +186,8 @@ static void handleLegacy(CanFrame& frame, CanDriver& driver) {
     }
 }
 
-// ── Handler: HW3 (0x3FD / 0x3F8 / 0x313) ────────────────────────────────
+// ── Handler: HW3 (0x3FD / 0x3F8) ────────────────────────────────────────
 static void handleHW3(CanFrame& frame, CanDriver& driver) {
-    // 0x313 (787) — UI_trackModeSettings: echo with trackModeRequest=ON
-    if (frame.id == 787) {
-        if (!cfg.trackModeEnable) return;
-        if (frame.dlc < 8) return;
-        setTrackModeRequest(frame, 0x01);
-        frame.data[7] = computeVehicleChecksum(frame);
-        if (driver.send(frame)) cfg.modifiedCount++;
-        else                    cfg.errorCount++;
-        return;
-    }
     // 0x3F8 (1016) — stalk position → speed profile (auto mode only)
     if (frame.id == 1016 && cfg.profileModeAuto) {
         if (frame.dlc < 6) return;

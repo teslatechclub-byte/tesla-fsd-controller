@@ -108,7 +108,6 @@ static bool checkToken(AsyncWebServerRequest* req) {
 #define NV_ISA_CHM   "a5"
 #define NV_EM_DET    "a6"
 #define NV_CN_MODE   "a7"
-#define NV_AP_RST    "a9"
 #define NV_PRECOND   "c2"
 #define NV_AP_SSID   "c4"
 #define NV_AP_PASS   "c5"
@@ -118,7 +117,6 @@ static bool checkToken(AsyncWebServerRequest* req) {
 // Auth namespace "sec":
 #define NV_PIN       "p1"
 #define NV_HW4_OFF   "d1"
-#define NV_TRACK_MD  "d2"
 #define NV_HW3_AUTO  "d4"
 #define NV_HW3_CUST  "d5"
 #define NV_HW3_CT    "d6"   // blob: hw3CustomTarget[kHw3CustomTargetCount]
@@ -133,6 +131,7 @@ static bool checkToken(AsyncWebServerRequest* req) {
 #define NV_ISA_OVR   "df"   // bool: isaOverride (v1.4.28, default false — HW4 ISA nav-limit clamp bypass)
 #define NV_TLSSC_BP  "e0"   // bool: tlsscBypass (v1.4.32, default false — 0x3FD mux 0 bit 38 alongside FSD activation)
 #define NV_PERF_MOD  "e1"   // string: perfModel (v1.4.33, free text on perf share card, ≤32 bytes)
+#define NV_CAR_VER   "e2"   // string: carSwVer (v1.4.34, user-entered Tesla MCU software version, ≤32 bytes)
 
 // ═══════════════════════════════════════════
 //  Config persistence (NVS)
@@ -151,7 +150,7 @@ static void migrateNvsKeys() {
         p.putBool(NV_ISA_CHM,  p.getBool("isaChm",    false)); p.remove("isaChm");
         p.putBool(NV_EM_DET,   p.getBool("emDet",     true));  p.remove("emDet");
         p.putBool(NV_CN_MODE,  p.getBool("cnMode",    false)); p.remove("cnMode");
-        p.putBool(NV_AP_RST,   p.getBool("apRestart", false)); p.remove("apRestart");
+        if (p.isKey("apRestart")) p.remove("apRestart");  // retired pre-obfuscation key
         // Legacy HW3 manual/smart/passthrough keys — feature removed in favor of
         // single hw3AutoSpeed toggle (see NV_HW3_AUTO). Drop any prior values.
         if (p.isKey("hw3Off"))   p.remove("hw3Off");
@@ -180,9 +179,11 @@ static void migrateNvsKeys() {
         p.putBool(NV_OVR_SL, false);
         DLOGLN("[NVS] overrideSpeedLimit reset to false after c5→c3 migration");
     }
-    // Remove retired obfuscated keys from the HW3 smart/manual/passthrough era.
-    // These were all written by the previous firmware but the feature is gone.
-    const char* retired[] = { "a8", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9", "c1", "d3" };
+    // Retired obfuscated keys from removed features:
+    //   a8/b1-b9/c1/d3 — HW3 smart/manual/passthrough era
+    //   a9             — AP auto-resume (v1.4.34)
+    //   d2             — track mode (v1.4.34)
+    const char* retired[] = { "a8", "a9", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9", "c1", "d2", "d3" };
     for (auto* k : retired) if (p.isKey(k)) p.remove(k);
     p.end();
     // Migrate PIN
@@ -204,13 +205,11 @@ void loadConfig() {
     cfg.emergencyDetection = prefs.getBool(NV_EM_DET,   true);
     cfg.forceActivate      = prefs.getBool(NV_CN_MODE,  false);
     cfg.overrideSpeedLimit = prefs.getBool(NV_OVR_SL,   false);
-    cfg.apRestart          = prefs.getBool(NV_AP_RST,   false);
     // Legacy NVS key wipe: older firmware wrote a precondition bool here. Remove
     // so it stops consuming NVS space. Feature was removed (needs Vehicle CAN).
     if (prefs.isKey(NV_PRECOND)) prefs.remove(NV_PRECOND);
     cfg.hw4OffsetRaw       = prefs.getUChar(NV_HW4_OFF, 0);
     if (cfg.hw4OffsetRaw > 21) cfg.hw4OffsetRaw = 21;  // v1.4.32: cap raised 15→21 (ev-open-can-tools-plugins +15 preset uses raw 21); clamp absurd stored values
-    cfg.trackModeEnable    = prefs.getBool(NV_TRACK_MD, false);
     cfg.hw3AutoSpeed       = prefs.getBool(NV_HW3_AUTO, true);
     cfg.hw3CustomSpeed     = prefs.getBool(NV_HW3_CUST, false);
     cfg.hw3OffsetSlew      = prefs.getBool(NV_HW3_SLEW, false);  // v1.4.27 opt-in test feature
@@ -252,6 +251,7 @@ void loadConfig() {
         }
     }
     strlcpy(cfg.perfModel, prefs.getString(NV_PERF_MOD, "").c_str(), sizeof(cfg.perfModel));
+    strlcpy(cfg.carSwVer,  prefs.getString(NV_CAR_VER,  "").c_str(), sizeof(cfg.carSwVer));
     strlcpy(apSSID,  prefs.getString(NV_AP_SSID,  "FSD-Controller").c_str(), sizeof(apSSID));
     strlcpy(apPass,  prefs.getString(NV_AP_PASS,  "12345678").c_str(),       sizeof(apPass));
     strlcpy(staSSID, prefs.getString(NV_STA_SSID, "").c_str(),               sizeof(staSSID));
@@ -280,10 +280,8 @@ void saveConfig() {
     prefs.putBool(NV_EM_DET,    cfg.emergencyDetection);
     prefs.putBool(NV_CN_MODE,   cfg.forceActivate);
     prefs.putBool(NV_OVR_SL,    cfg.overrideSpeedLimit);
-    prefs.putBool(NV_AP_RST,    cfg.apRestart);
     // NV_PRECOND no longer written — field is runtime-only until a UI surface returns.
     prefs.putUChar(NV_HW4_OFF,  cfg.hw4OffsetRaw);
-    prefs.putBool(NV_TRACK_MD,  cfg.trackModeEnable);
     prefs.putBool(NV_HW3_AUTO,  cfg.hw3AutoSpeed);
     prefs.putBool(NV_HW3_CUST,  cfg.hw3CustomSpeed);
     prefs.putBool(NV_HW3_SLEW,  cfg.hw3OffsetSlew);
@@ -302,6 +300,7 @@ void saveConfig() {
     prefs.putBool(NV_ISA_OVR,   cfg.isaOverride);
     prefs.putBool(NV_TLSSC_BP,  cfg.tlsscBypass);
     prefs.putString(NV_PERF_MOD, cfg.perfModel);
+    prefs.putString(NV_CAR_VER,  cfg.carSwVer);
     // WiFi keys written directly by /api/wifi — not touched here.
     prefs.end();
 }
@@ -393,6 +392,36 @@ static void flushLogsToSpiffs() {
         fr.close();
         if (sz >= SPIFFS_LOG_MAX) spiffsRotate();
     }
+}
+
+// Sanitize free-text user input into fixed-size buffer:
+//   1. trim whitespace, drop control chars (<0x20 and 0x7F)
+//   2. truncate at cap-1 bytes
+//   3. trim partial trailing UTF-8 sequence so we never store dangling
+//      continuation bytes (which would render as U+FFFD).
+static void sanitizeUserStringInto(const String& src, char* dst, size_t cap) {
+    if (cap == 0) return;
+    String s = src;
+    s.trim();
+    size_t n = 0;
+    for (size_t i = 0; i < s.length() && n + 1 < cap; ++i) {
+        uint8_t c = (uint8_t)s[i];
+        if (c < 0x20 || c == 0x7F) continue;
+        dst[n++] = (char)c;
+    }
+    if (n > 0) {
+        size_t i = n;
+        while (i > 0 && (((uint8_t)dst[i - 1]) & 0xC0) == 0x80) i--;
+        if (i > 0 && (((uint8_t)dst[i - 1]) & 0x80) != 0) {
+            uint8_t lead = (uint8_t)dst[i - 1];
+            size_t expected =
+                (lead & 0xE0) == 0xC0 ? 2 :
+                (lead & 0xF0) == 0xE0 ? 3 :
+                (lead & 0xF8) == 0xF0 ? 4 : 1;
+            if (n - (i - 1) < expected) n = i - 1;
+        }
+    }
+    dst[n] = 0;
 }
 
 // ═══════════════════════════════════════════
@@ -502,34 +531,22 @@ void setupWebServer() {
             else if (cmd == "reset")  { cfg.perfAccelState = 0; cfg.perfAccelMs = 0;
                                         cfg.perfBrakeState = 0; cfg.perfBrakeMs = 0; }
             else if (cmd == "set_model" && req->hasParam("v")) {
-                // Trim and copy user-provided model name (≤32 bytes, drop control chars).
-                String v = req->getParam("v")->value();
-                v.trim();
-                char clean[33] = {};
-                size_t n = 0;
-                for (size_t i = 0; i < v.length() && n + 1 < sizeof(clean); ++i) {
-                    uint8_t c = (uint8_t)v[i];
-                    if (c < 0x20 || c == 0x7F) continue;
-                    clean[n++] = (char)c;
-                }
-                // UTF-8-safe truncation: drop a partial trailing multi-byte sequence
-                // so we don't store dangling continuation bytes that render as U+FFFD.
-                if (n > 0) {
-                    size_t i = n;
-                    while (i > 0 && (((uint8_t)clean[i - 1]) & 0xC0) == 0x80) i--;
-                    if (i > 0 && (((uint8_t)clean[i - 1]) & 0x80) != 0) {
-                        uint8_t lead = (uint8_t)clean[i - 1];
-                        size_t expected =
-                            (lead & 0xE0) == 0xC0 ? 2 :
-                            (lead & 0xF0) == 0xE0 ? 3 :
-                            (lead & 0xF8) == 0xF0 ? 4 : 1;
-                        if (n - (i - 1) < expected) n = i - 1;
-                    }
-                }
-                clean[n] = 0;
-                strlcpy(cfg.perfModel, clean, sizeof(cfg.perfModel));
+                sanitizeUserStringInto(req->getParam("v")->value(),
+                                       cfg.perfModel, sizeof(cfg.perfModel));
                 saveConfig();
             }
+        }
+        req->send(200, "application/json", "{\"ok\":true}");
+    });
+
+    // User-entered Tesla MCU/IVI software version (free text, ≤32 bytes).
+    // Stored for diagnostic context — not used by injection logic.
+    server.on("/api/carver", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkToken(req)) { req->send(403, "text/plain", "UNAUTH"); return; }
+        if (req->hasParam("v")) {
+            sanitizeUserStringInto(req->getParam("v")->value(),
+                                   cfg.carSwVer, sizeof(cfg.carSwVer));
+            saveConfig();
         }
         req->send(200, "application/json", "{\"ok\":true}");
     });
@@ -540,21 +557,14 @@ void setupWebServer() {
 
         // JSON-escape SSIDs (guard against " and \ in SSID). Both AP and STA
         // SSIDs are user-controlled via /api/wifi and /api/sta.
-        auto jsonEsc = [](const char* src, char* dst, size_t cap) {
-            char* out = dst;
-            char* end = dst + cap - 3;
-            while (*src && out < end) {
-                if (*src == '"' || *src == '\\') *out++ = '\\';
-                *out++ = *src++;
-            }
-            *out = 0;
-        };
         char escapedAp[128] = {};
         char escapedSta[128] = {};
         char escapedPerfModel[80] = {};
-        jsonEsc(apSSID,  escapedAp,  sizeof(escapedAp));
-        jsonEsc(staSSID, escapedSta, sizeof(escapedSta));
-        jsonEsc(cfg.perfModel, escapedPerfModel, sizeof(escapedPerfModel));
+        char escapedCarSwVer[80]  = {};
+        jsonEscapeInto(apSSID,  escapedAp,  sizeof(escapedAp));
+        jsonEscapeInto(staSSID, escapedSta, sizeof(escapedSta));
+        jsonEscapeInto(cfg.perfModel, escapedPerfModel, sizeof(escapedPerfModel));
+        jsonEscapeInto(cfg.carSwVer,  escapedCarSwVer,  sizeof(escapedCarSwVer));
 
         // Chip temp values: serialise NaN as JSON null so the front-end can
         // hide the badge while waiting for the first sample (boot has no data).
@@ -569,9 +579,13 @@ void setupWebServer() {
             snprintf(tempPeakC, sizeof(tempPeakC), "%.1f", gThermalStatus.peakC);
         else strlcpy(tempPeakC, "null", sizeof(tempPeakC));
 
-        char buf[2800];
-        static_assert(sizeof(buf) >= 2800, "JSON buffer too small");
-        snprintf(buf, sizeof(buf),
+        // Allocate the status JSON buffer on the heap, not the async_tcp task
+        // stack (4-8 KB total). This handler runs at 1 Hz and a 2.9 KB stack
+        // frame leaves uncomfortably little headroom for downstream calls.
+        constexpr size_t kStatusBufCap = 2900;
+        char* buf = (char*)malloc(kStatusBufCap);
+        if (!buf) { req->send(503, "application/json", "{\"error\":\"oom\"}"); return; }
+        snprintf(buf, kStatusBufCap,
             "{\"rx\":%u,\"modified\":%u,\"errors\":%u,\"uptime\":%u,"
             "\"canOK\":%s,\"fsdTriggered\":%s,"
             "\"fsdEnable\":%d,\"hwMode\":%d,\"speedProfile\":%d,\"gwAutopilot\":%d,"
@@ -594,8 +608,8 @@ void setupWebServer() {
             "\"visionLimit\":%u,\"nagLevel\":%u,\"fcw\":%u,\"accState\":%u,\"brake\":%s,"
             "\"sideCol\":%u,\"laneWarn\":%u,\"laneChg\":%u,"
             "\"autosteer\":%s,\"aeb\":%s,\"fcwOn\":%s,"
-            "\"apRestart\":%s,\"hw4Offset\":%u,\"trackMode\":%d,"
-            "\"perfAccel\":%u,\"perfBrake\":%u,\"perfAccelMs\":%u,\"perfBrakeMs\":%u,\"brakeEntryKph\":%u,\"perfModel\":\"%s\","
+            "\"hw4Offset\":%u,"
+            "\"perfAccel\":%u,\"perfBrake\":%u,\"perfAccelMs\":%u,\"perfBrakeMs\":%u,\"brakeEntryKph\":%u,\"perfModel\":\"%s\",\"carSwVer\":\"%s\","
             "\"apSSID\":\"%s\",\"staSSID\":\"%s\",\"staIP\":\"%s\",\"staOK\":%s,"
             "\"chipTempC\":%s,\"chipTempAvgC\":%s,\"chipTempPeakC\":%s,"
             "\"thermalLevel\":%u,\"thermalStatus\":\"%s\",\"thermalProtect\":%s,"
@@ -670,13 +684,12 @@ void setupWebServer() {
             cfg.autosteerOn ? "true" : "false",
             cfg.aebOn       ? "true" : "false",
             cfg.fcwOn       ? "true" : "false",
-            cfg.apRestart   ? "true" : "false",
             (unsigned)cfg.hw4OffsetRaw,
-            (int)cfg.trackModeEnable,
             (unsigned)cfg.perfAccelState, (unsigned)cfg.perfBrakeState,
             (unsigned)cfg.perfAccelMs,    (unsigned)cfg.perfBrakeMs,
             (unsigned)cfg.perfBrakeEntryKph,
             escapedPerfModel,
+            escapedCarSwVer,
             escapedAp,
             escapedSta,
             (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString().c_str() : "",
@@ -700,11 +713,13 @@ void setupWebServer() {
             );
             size_t len = strlen(buf);
             buf[len - 1] = '\0';
-            strlcat(buf, dbg, sizeof(buf));
-            strlcat(buf, "}", sizeof(buf));
+            strlcat(buf, dbg, kStatusBufCap);
+            strlcat(buf, "}", kStatusBufCap);
         }
 #endif
+        // send() copies into its internal String — safe to free immediately.
         req->send(200, "application/json", buf);
+        free(buf);
     });
 
     // Auth — validate PIN, return session token
@@ -903,11 +918,6 @@ void setupWebServer() {
             uint8_t v = (uint8_t)raw;
             if (v != cfg.hw4OffsetRaw) { cfg.hw4OffsetRaw = v; changed = true; }
         }
-        if (req->hasParam("trackMode")) {
-            bool v = req->getParam("trackMode")->value().toInt() != 0;
-            if (v != cfg.trackModeEnable) { cfg.trackModeEnable = v; changed = true; }
-        }
-
         if (changed) saveConfig();
         req->send(200, "text/plain", "OK");
     });
@@ -1077,15 +1087,6 @@ void setupWebServer() {
     });
 
     // /api/highbeam removed — requires Vehicle CAN (X179 pin 9/10), not available on Party CAN
-
-    // AP auto-restart toggle
-    server.on("/api/aprestart", HTTP_GET, [](AsyncWebServerRequest* req) {
-        if (!checkToken(req)) { req->send(403, "text/plain", "UNAUTH"); return; }
-        if (!req->hasParam("en")) { req->send(400, "text/plain", "Missing en"); return; }
-        cfg.apRestart = req->getParam("en")->value().toInt() != 0;
-        saveConfig();
-        req->send(200, "application/json", "{\"ok\":true}");
-    });
 
     // Manual reboot — flag-based (same pattern as OTA restart)
     server.on("/api/reboot", HTTP_GET, [](AsyncWebServerRequest* req) {
@@ -1431,6 +1432,29 @@ void setupWebServer() {
         resp->addHeader("Content-Disposition", "attachment; filename=\"dns_blocked.csv\"");
         req->send(resp);
     });
+
+    // ── Diagnostic bundle upload ──────────────────────────────────────────────
+    // POST triggers a background task that builds a JSON snapshot of cfg +
+    // CAN fingerprint + recent log, and POSTs it to the project Worker.
+    // The Worker stores it under a 6-char short ID (TTL 30d) — user pastes
+    // the ID in a GitHub issue; only the maintainer's secret can read it back.
+    server.on("/api/diag/upload", HTTP_POST, [](AsyncWebServerRequest* req) {
+        if (!checkToken(req)) { req->send(403, "text/plain", "UNAUTH"); return; }
+        bool started = diagUploadTrigger();
+        req->send(200, "application/json",
+                  started ? "{\"started\":true}" : "{\"started\":false,\"reason\":\"busy\"}");
+    });
+
+    server.on("/api/diag/status", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkToken(req)) { req->send(403, "text/plain", "UNAUTH"); return; }
+        char buf[160];
+        char escMsg[80];
+        jsonEscapeInto(diagUploadMsg(), escMsg, sizeof(escMsg));
+        snprintf(buf, sizeof(buf),
+                 "{\"state\":%u,\"id\":\"%s\",\"msg\":\"%s\"}",
+                 (unsigned)diagUploadState(), diagUploadShortId(), escMsg);
+        req->send(200, "application/json", buf);
+    });
 #endif
 
     server.begin();
@@ -1449,7 +1473,6 @@ void canTask(void* param) {
     uint32_t normalStartMs = millis();  // boot time; clears crash counter after 10s
     bool     crashCleared  = false;    // true once crash counter has been cleared
     uint32_t logLastMs     = 0;  // last 1 Hz log check (millis)
-    uint8_t  prevAccState = 0;   // tracks AP state transitions for auto-restart
 
     // One-shot CAN ID frequency scan — collects for 30s then logs to diag
     struct IdEntry { uint32_t id; uint32_t cnt; };
@@ -1465,6 +1488,15 @@ void canTask(void* param) {
     bool     log_prevHB        = false;
     uint32_t log_prevErrCount  = 0;
     uint32_t log_fsdModAt      = 0;   // modifiedCount when FSD last triggered
+    // Speed-limit timeline trackers — sentinel 255 forces first-seen log line.
+    // Without these, a user uploading hours after the bug only sees parking-time
+    // state; the persistent /diag.log is the only signal a maintainer can read
+    // post-hoc.
+    uint8_t  log_prevFused     = 255;
+    uint8_t  log_prevVision    = 255;
+    uint8_t  log_prevAccState  = 255;
+    bool     log_prevAutosteer = false;
+    uint32_t log_prevSlewCount = 0;
 
     for (;;) {
         // Feed watchdog — 30s TWDT (see esp_task_wdt_init below)
@@ -1520,17 +1552,6 @@ void canTask(void* param) {
                 if (!found && idScanN < 255) { idScan[idScanN].id = frame.id; idScan[idScanN].cnt = 1; idScanN++; }
             }
         }
-
-        // ── AP auto-restart on disengage ──────────────────────────────
-        if (prevAccState > 0 && cfg.accState == 0 && cfg.canOK) {
-            tryAPRestart(canDriver);
-            if (cfg.apRestart) {
-                uint32_t up = (millis() - cfg.uptimeStart) / 1000;
-                addDiagLog(up, cfg.apRestartValid ? "AP disengaged -> restart injected"
-                                                  : "AP disengaged -> no cache");
-            }
-        }
-        prevAccState = cfg.accState;
 
         // ── Clear crash counter after 10s of normal operation ──────
         if (!crashCleared && millis() - normalStartMs >= 10000) {
@@ -1609,6 +1630,48 @@ void canTask(void* param) {
                          (unsigned)cfg.errorCount);
                 addDiagLog(up, msg);
                 log_prevErrCount = cfg.errorCount;
+            }
+            // Speed-limit timeline — fires once per change, includes everything
+            // a maintainer needs to reproduce the moment hours later. Order
+            // intentional: transition first, then full snapshot.
+            if (cfg.fusedSpeedLimit != log_prevFused || cfg.visionSpeedLimit != log_prevVision) {
+                snprintf(msg, sizeof(msg),
+                    "SL f=%u v=%u spd=%u acc=%u stk=%u sent=%u tgt=%u",
+                    (unsigned)cfg.fusedSpeedLimit, (unsigned)cfg.visionSpeedLimit,
+                    (unsigned)telemSpeedRaw(), (unsigned)cfg.accState,
+                    (unsigned)cfg.hw3SpeedOffset, (unsigned)cfg.hw3OffsetLastRaw,
+                    (unsigned)cfg.hw3OffsetTargetRaw);
+                addDiagLog(up, msg);
+                log_prevFused = cfg.fusedSpeedLimit;
+                log_prevVision = cfg.visionSpeedLimit;
+            }
+            if (cfg.accState != log_prevAccState) {
+                if (log_prevAccState == 255) {
+                    // First-seen — sentinel 255 isn't a real ACC value; print
+                    // an init line so the log doesn't read "ACC 255→0".
+                    snprintf(msg, sizeof(msg), "ACC init=%u f=%u nag=%u",
+                        (unsigned)cfg.accState,
+                        (unsigned)cfg.fusedSpeedLimit, (unsigned)cfg.nagLevel);
+                } else {
+                    snprintf(msg, sizeof(msg), "ACC %u→%u f=%u nag=%u",
+                        (unsigned)log_prevAccState, (unsigned)cfg.accState,
+                        (unsigned)cfg.fusedSpeedLimit, (unsigned)cfg.nagLevel);
+                }
+                addDiagLog(up, msg);
+                log_prevAccState = cfg.accState;
+            }
+            if (cfg.autosteerOn != log_prevAutosteer) {
+                addDiagLog(up, cfg.autosteerOn ? "AS on" : "AS off");
+                log_prevAutosteer = cfg.autosteerOn;
+            }
+            if (cfg.hw3OffsetSlewCount > log_prevSlewCount) {
+                // Slew clamping — every drop the limiter cushioned. Bursts here
+                // mean we kept hitting the rate cap; "offset feels lazy" reports.
+                snprintf(msg, sizeof(msg), "slew +%u (last=%u tgt=%u)",
+                    (unsigned)(cfg.hw3OffsetSlewCount - log_prevSlewCount),
+                    (unsigned)cfg.hw3OffsetLastRaw, (unsigned)cfg.hw3OffsetTargetRaw);
+                addDiagLog(up, msg);
+                log_prevSlewCount = cfg.hw3OffsetSlewCount;
             }
         }
 

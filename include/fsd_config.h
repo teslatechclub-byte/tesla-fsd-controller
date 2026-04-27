@@ -67,7 +67,6 @@ struct FSDConfig {
     volatile bool     isaOverride         = false;
     volatile uint8_t  hwDetected          = 0;       // from 0x398: 0=unknown, 1=HW3, 2=HW4 (informational only)
     volatile int8_t   gatewayAutopilot    = -1;      // from 0x7FF mux-2: -1=unseen, 0=NONE,1=HIGHWAY,2=ENHANCED,3=SELF_DRIVING,4=BASIC
-    volatile bool     trackModeEnable     = false;   // HW3: echo 0x313 with UI_trackModeRequest=ON (off by default)
 
     // Climate — read from 0x283 (BODY_R1, GTW bus)
     volatile bool     tempSeen          = false;
@@ -159,11 +158,6 @@ struct FSDConfig {
     volatile bool     aebOn               = false; // DAS_aebEnabled        bit18
     volatile bool     fcwOn               = false; // DAS_fcwEnabled        bit34
 
-    // AP auto-restart — inject 0x293 with autosteerEnabled=1 on disengage
-    volatile bool     apRestart           = false;
-    volatile uint8_t  apRestartCache[8]   = {};    // last received 0x293 raw bytes
-    volatile bool     apRestartValid      = false; // cache has at least one frame
-
     // Performance test — 0→100 acceleration and 100→0 braking
     volatile uint8_t  perfAccelState      = 0;   // 0=idle,1=armed,2=running,3=done
     volatile uint8_t  perfBrakeState      = 0;
@@ -171,6 +165,7 @@ struct FSDConfig {
     volatile uint32_t perfBrakeMs         = 0;   // result ms
     volatile uint8_t  perfBrakeEntryKph   = 0;   // actual speed (kph) when braking started
     char              perfModel[33]       = {};  // user-set vehicle name shown on share card (UTF-8, ≤32 bytes)
+    char              carSwVer[33]        = {};  // user-entered Tesla MCU/IVI software version (e.g. "2024.44.25.1"), ≤32 bytes
 
     // Statistics
     volatile uint32_t rxCount             = 0;
