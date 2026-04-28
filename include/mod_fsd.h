@@ -175,6 +175,7 @@ static void handleLegacy(CanFrame& frame, CanDriver& driver) {
         if (index == 0 && cfg.fsdTriggered && cfg.fsdEnable) {
             setBit(frame, 46, true);
             setSpeedProfileV12V13(frame, cfg.speedProfile);
+            btMark(bt_firstFsdMod);
             if (driver.send(frame)) cfg.modifiedCount++;
             else                    cfg.errorCount++;
         }
@@ -215,6 +216,7 @@ static void handleHW3(CanFrame& frame, CanDriver& driver) {
             setBit(frame, 46, true);
             if (cfg.tlsscBypass) setBit(frame, 38, true);  // ev-open-can-tools-plugins bypass-tlssc-hw3
             setSpeedProfileV12V13(frame, cfg.speedProfile);
+            btMark(bt_firstFsdMod);
             if (driver.send(frame)) cfg.modifiedCount++;
             else                    cfg.errorCount++;
         }
@@ -360,6 +362,7 @@ static void handleHW4(CanFrame& frame, CanDriver& driver) {
             setBit(frame, 60, true);
             if (cfg.emergencyDetection) setBit(frame, 59, true);
             if (cfg.tlsscBypass)        setBit(frame, 38, true);  // ev-open-can-tools-plugins bypass-tlssc-hw4
+            btMark(bt_firstFsdMod);
             if (driver.send(frame)) cfg.modifiedCount++;
             else                    cfg.errorCount++;
         }

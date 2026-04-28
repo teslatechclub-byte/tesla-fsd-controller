@@ -1497,6 +1497,15 @@ void canTask(void* param) {
     uint8_t  log_prevAccState  = 255;
     bool     log_prevAutosteer = false;
     uint32_t log_prevSlewCount = 0;
+    // Boot-timing trackers (v1.4.35) — pure observation, no behavior change.
+    // Each fires once when the corresponding bt_first*ms transitions 0→nonzero,
+    // letting maintainers correlate "FSD→AP at cold boot" reports with whether
+    // the device injected before key car-readiness frames showed up.
+    bool     log_first920Logged    = false;
+    bool     log_first923Logged    = false;
+    bool     log_first1021Logged   = false;
+    bool     log_first2047Logged   = false;
+    bool     log_firstFsdModLogged = false;
 
     for (;;) {
         // Feed watchdog — 30s TWDT (see esp_task_wdt_init below)
@@ -1672,6 +1681,27 @@ void canTask(void* param) {
                     (unsigned)cfg.hw3OffsetLastRaw, (unsigned)cfg.hw3OffsetTargetRaw);
                 addDiagLog(up, msg);
                 log_prevSlewCount = cfg.hw3OffsetSlewCount;
+            }
+            // Boot-timing first-seen logs (v1.4.35) — each fires once.
+            if (!log_first920Logged    && bt_first920ms != 0) {
+                snprintf(msg, sizeof(msg), "1st 398 +%ums",  (unsigned)(bt_first920ms  - cfg.uptimeStart));
+                addDiagLog(up, msg); log_first920Logged = true;
+            }
+            if (!log_first2047Logged   && bt_first2047ms != 0) {
+                snprintf(msg, sizeof(msg), "1st 7FF +%ums",  (unsigned)(bt_first2047ms - cfg.uptimeStart));
+                addDiagLog(up, msg); log_first2047Logged = true;
+            }
+            if (!log_first923Logged    && bt_first923ms != 0) {
+                snprintf(msg, sizeof(msg), "1st 39B +%ums",  (unsigned)(bt_first923ms  - cfg.uptimeStart));
+                addDiagLog(up, msg); log_first923Logged = true;
+            }
+            if (!log_first1021Logged   && bt_first1021ms != 0) {
+                snprintf(msg, sizeof(msg), "1st 3FD +%ums",  (unsigned)(bt_first1021ms - cfg.uptimeStart));
+                addDiagLog(up, msg); log_first1021Logged = true;
+            }
+            if (!log_firstFsdModLogged && bt_firstFsdMod != 0) {
+                snprintf(msg, sizeof(msg), "1st FSDmod +%ums", (unsigned)(bt_firstFsdMod - cfg.uptimeStart));
+                addDiagLog(up, msg); log_firstFsdModLogged = true;
             }
         }
 

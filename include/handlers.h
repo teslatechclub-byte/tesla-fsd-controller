@@ -41,6 +41,20 @@ static inline void jsonEscapeInto(const char* src, char* dst, size_t cap) {
 // Safe: this project has a single translation unit (main.cpp). No ODR risk.
 FSDConfig cfg;  // NOLINT(misc-definitions-in-headers)
 
+// ── Boot timing diagnostics (v1.4.36) ─────────────────────────────────────
+// First-seen millis() for key car-readiness frames and the first successful
+// FSD injection send. Pure observation — used to triage "FSD→AP at cold boot"
+// reports by exposing whether we injected before the car gateway/DAS were
+// ready. Logged once each in the 1 Hz diag loop in main.cpp.
+static volatile uint32_t bt_first920ms   = 0;  // 0x398 GTW_carConfig
+static volatile uint32_t bt_first923ms   = 0;  // 0x39B DAS_status
+static volatile uint32_t bt_first1021ms  = 0;  // 0x3FD FSD activation frame
+static volatile uint32_t bt_first2047ms  = 0;  // 0x7FF GTW_autopilot
+static volatile uint32_t bt_firstFsdMod  = 0;  // first FSD-path driver.send() that returned true
+static inline void btMark(volatile uint32_t& slot) {
+    if (slot == 0) slot = millis();
+}
+
 // Sub-modules (included after cfg is defined so they can use it via extern)
 #include "mod_log.h"
 #include "mod_diag_collect.h"
@@ -75,6 +89,14 @@ static void handleMessage(CanFrame& frame, CanDriver& driver) {
     // Passive snapshot for diagnostic upload — fingerprints car / firmware
     // independently of the injection path. Cheap (one bit + memcpy).
     diagOnFrame(frame.id, frame.data, frame.dlc);
+
+    // Boot timing — first-seen of key car-readiness frames (cheap, no-op after first hit)
+    switch (frame.id) {
+        case 920:  btMark(bt_first920ms);  break;
+        case 923:  btMark(bt_first923ms);  break;
+        case 1021: btMark(bt_first1021ms); break;
+        case 2047: btMark(bt_first2047ms); break;
+    }
 
     // HW detection: GTW_carConfig 0x398 (920)
     // Informational only — does NOT override the user-selected hwMode.

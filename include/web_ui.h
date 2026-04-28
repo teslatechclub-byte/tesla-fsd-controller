@@ -356,12 +356,12 @@ select:focus{outline:none;border-color:#38bdf8}
 <div class="card">
   <div class="card-title" id="iCardCarVer">车辆信息</div>
   <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px">
-    <span class="row-label" id="iLblCarVer">车机软件版本（手动填写，可选）</span>
+    <span class="row-label" id="iLblCarVer">车机软件版本（建议填写）</span>
     <input type="text" id="carVerInput" class="text-input" maxlength="32" placeholder="例如 2024.44.25.1" autocomplete="off">
   </div>
   <button class="save-btn" id="carVerSaveBtn" onclick="saveCarVer()">保存</button>
   <div class="msg" id="carVerMsg"></div>
-  <div style="font-size:11px;color:#64748b;margin-top:6px" id="iCarVerHint">在车机 控制 → 软件 里能看到。仅用于反馈/排查参考，不影响功能。</div>
+  <div style="font-size:11px;color:#64748b;margin-top:6px" id="iCarVerHint">上传诊断包时一起带上方便定位限速/激活问题。在车机 控制 → 软件 里能看到，不填不影响功能。</div>
 </div>
 
 <div class="card" id="cardWifi">
