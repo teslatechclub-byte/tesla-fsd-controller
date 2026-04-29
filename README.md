@@ -10,6 +10,10 @@
 >
 > 海外车辆暂不受影响。本项目代码保留供学习、研究及海外用户使用。
 
+> ## ⚠️ 已知不兼容：Tesla 车机 26.8.3.6（2026-04-29 推送）
+>
+> 实测升级后 **FSD 无法激活**。**暂不建议升级**到 26.8.3.6，已升级用户优先利用 24h 回退窗口回到 26.8.2.x。详见 [issue #23](https://github.com/wjsall/tesla-fsd-controller/issues/23)，修复跟进 v1.4.36+。
+
 ---
 
 基于 [ev-open-can-tools](https://github.com/ev-open-can-tools/ev-open-can-tools)（原 tesla-open-can-mod） 的 ESP32 + WiFi 控制面板版本。

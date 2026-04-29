@@ -10,6 +10,10 @@
 >
 > Vehicles outside China are currently unaffected. The codebase is preserved for educational, research, and international use.
 
+> ## ⚠️ Known incompatibility: Tesla MCU 26.8.3.6 (released 2026-04-29)
+>
+> FSD activation is broken after upgrading to this MCU release. **Avoid upgrading**; if already upgraded, use the 24h rollback window to return to 26.8.2.x. Tracking: [issue #23](https://github.com/wjsall/tesla-fsd-controller/issues/23). Fix targeted for v1.4.36+.
+
 ---
 
 ESP32 + WiFi web panel build based on [ev-open-can-tools](https://github.com/ev-open-can-tools/ev-open-can-tools) (formerly tesla-open-can-mod).
